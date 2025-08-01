@@ -1,3 +1,57 @@
+# Cosmos 2 for Sound Propagation
+
+This repo tries out the Cosmos-2 Model for the Phygen Dataset/Benchmark.
+
+
+### Installation
+
+1. Clone Repo
+    ```bash
+    git clone https://github.com/xXAI-botXx/cosmos-predict2.git
+    cd cosmos-predict2
+    ```
+
+2. Setup Env
+    ```bash
+    conda env create --file cosmos-predict2.yaml
+    conda activate cosmos-predict2
+
+    bash scripts/install_decord_arm.sh
+    pip install -r requirements-conda.txt
+    pip install flash-attn==2.6.3 --no-build-isolation
+    ln -sf $CONDA_PREFIX/lib/python3.10/site-packages/nvidia/*/include/* $CONDA_PREFIX/include/
+    ln -sf $CONDA_PREFIX/lib/python3.10/site-packages/nvidia/*/include/* $CONDA_PREFIX/include/python3.10
+    CUDA_HOME=$CONDA_PREFIX pip install transformer-engine[pytorch]==1.13.0
+    CUDA_HOME=$CONDA_PREFIX pip install natten==0.21.0
+
+    # Apex library for training (optional if inference only)
+    CUDA_HOME=$CONDA_PREFIX pip install -v --disable-pip-version-check --no-cache-dir --no-build-isolation --config-settings "--build-option=--cpp_ext --cuda_ext" git+https://github.com/NVIDIA/apex.git
+
+    # Verify setup
+    CUDA_HOME=$CONDA_PREFIX python scripts/test_environment.py
+    ```
+
+3. Install project
+    ```bash
+    pip install -e .
+    ```
+
+4. Download Pretrained model
+    1. Make Huggingface Account + create a Access Token (somewhere in the settings)
+    2. Go to https://huggingface.co/nvidia/Cosmos-Predict2-2B-Video2World and accept their terms (you have to click on "Expand to review access" in the "You need to agree to share your contact information to access this model" area)
+    3. Then go back to your bash/console and login with: huggingface-cli login -> as password use the generated token
+    4. Start the downloading proces of the prediction model: `nohup huggingface-cli download nvidia/Cosmos-Predict2-2B-Video2World > download_model.log 2>&1 &` -> check progress/finish with: `cat download_model.log` or with `ps aux | grep huggingface-cli`
+
+
+<br><br><br><br>
+
+---
+# Original README Content:
+
+---
+
+<br><br>
+
 <p align="center">
     <img src="assets/nvidia-cosmos-header.png" alt="NVIDIA Cosmos Header">
 </p>
