@@ -30,9 +30,7 @@ import torch
 from megatron.core import parallel_state
 from tqdm import tqdm
 
-from cosmos_predict2.configs.base.config_video2world import (
-    PREDICT2_VIDEO2WORLD_PIPELINE_14B,
-)
+from cosmos_predict2.configs.base.config_video2world import PREDICT2_VIDEO2WORLD_PIPELINE_14B
 from cosmos_predict2.pipelines.video2world import Video2WorldPipeline
 from examples.video2world import _DEFAULT_NEGATIVE_PROMPT, validate_input_file
 from imaginaire.utils import distributed, log, misc
@@ -52,6 +50,11 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default="",
         help="Custom path to the DiT model checkpoint for post-trained models.",
+    )
+    parser.add_argument(
+        "--load_ema",
+        action="store_true",
+        help="Use EMA weights for generation.",
     )
     parser.add_argument(
         "--prompt",
@@ -169,6 +172,7 @@ def setup_pipeline(args: argparse.Namespace):
         text_encoder_path=text_encoder_path,
         device="cuda",
         torch_dtype=torch.bfloat16,
+        load_ema_to_reg=args.load_ema,
         load_prompt_refiner=False,  # Disable prompt refiner for GR00T
     )
 

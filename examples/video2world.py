@@ -31,11 +31,7 @@ from cosmos_predict2.configs.base.config_video2world import (
     PREDICT2_VIDEO2WORLD_WITH_NATTEN_PIPELINE_2B,
     PREDICT2_VIDEO2WORLD_WITH_NATTEN_PIPELINE_14B,
 )
-from cosmos_predict2.pipelines.video2world import (
-    _IMAGE_EXTENSIONS,
-    _VIDEO_EXTENSIONS,
-    Video2WorldPipeline,
-)
+from cosmos_predict2.pipelines.video2world import _IMAGE_EXTENSIONS, _VIDEO_EXTENSIONS, Video2WorldPipeline
 from imaginaire.utils import distributed, log, misc
 from imaginaire.utils.io import save_image_or_video, save_text_prompts
 
@@ -99,6 +95,11 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default="",
         help="Custom path to the DiT model checkpoint for post-trained models.",
+    )
+    parser.add_argument(
+        "--load_ema",
+        action="store_true",
+        help="Use EMA weights for generation.",
     )
     parser.add_argument(
         "--prompt",
@@ -195,7 +196,9 @@ def setup_pipeline(args: argparse.Namespace, text_encoder=None):
         if args.aspect_ratio != "16:9":
             raise NotImplementedError("Cosmos-Predict2 + NATTEN only supports 16:9 aspect ratio at the moment.")
 
-        dit_path = f"checkpoints/nvidia/Cosmos-Predict2-{args.model_size}-Video2World/model-720p-{args.fps}fps-natten.pt"
+        dit_path = (
+            f"checkpoints/nvidia/Cosmos-Predict2-{args.model_size}-Video2World/model-720p-{args.fps}fps-natten.pt"
+        )
 
     elif args.model_size == "2B":
         config = PREDICT2_VIDEO2WORLD_PIPELINE_2B
@@ -274,6 +277,7 @@ def setup_pipeline(args: argparse.Namespace, text_encoder=None):
         text_encoder_path=text_encoder_path,
         device="cuda",
         torch_dtype=torch.bfloat16,
+        load_ema_to_reg=args.load_ema,
         load_prompt_refiner=True,
     )
 
