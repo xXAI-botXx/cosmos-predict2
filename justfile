@@ -22,6 +22,8 @@ _conda-env:
     ln -sf "$(conda info --base)/envs/cosmos-predict2" .venv
 
 # Install inference in a new conda environment
-install-conda:
+install-conda: 
     just -f {{ justfile() }} _conda-env
+    ./.venv/bin/python -m pip install torch torchvision --extra-index-url https://download.pytorch.org/whl/cu126
+    ./.venv/bin/python -m pip install psutil
     just -f {{ justfile() }} install cu126

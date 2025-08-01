@@ -3,6 +3,42 @@
 This repo tries out the Cosmos-2 Model for the Phygen Dataset/Benchmark.
 
 
+### Downloading Dataset
+
+1. Install Anaconda
+    ```bash
+    wget https://repo.anaconda.com/archive/Anaconda3-2024.10-1-Linux-x86_64.sh
+    bash Anaconda3-2024.10-1-Linux-x86_64.sh
+
+    # open new bash!
+    export PATH="$HOME/anaconda3/bin:$PATH"
+    conda init
+    ```
+2. Install Dependencies
+    ```bash
+    conda create -n physgen-dataset python=3.10 pip -y
+    conda activate physgen-dataset
+    conda install -c conda-forge cmake -y
+    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
+    pip install sympy timm tqdm scikit-learn pyyaml pydantic pip install pillow wandb ipython ipykernel scikit-image pytorch-msssim pandas prime_printer shapely opencv-python datasets==3.6.0
+    ```
+3. Start Downloading Script
+    ```bash
+    conda activate physgen-dataset
+    cd ~/src/cosmos-predict2
+    python physgen_dataset.py \
+        --output_real_path ./datasets/physgen_raw/real \
+        --output_osm_path ./datasets/physgen_raw/osm \
+        --variation sound_reflection \
+        --input_type osm \
+        --output_type standard
+    python physgen_cosmos_converter.py \
+        --input_folder ./datasets/physgen_raw/osm \
+        --target_folder ./datasets/physgen_raw/real \
+        --output_folder ./datasets/physgen
+    ```
+
+
 ### Installation
 
 1. Clone Repo
@@ -11,37 +47,158 @@ This repo tries out the Cosmos-2 Model for the Phygen Dataset/Benchmark.
     cd cosmos-predict2
     ```
 
-2. Setup Env
+2. Docker Installation
     ```bash
-    conda env create --file cosmos-predict2.yaml
+    # --- Docker ---
+    # Make Sure Docker is installed
+    docker --version
+    which docker
+
+    # If not run:
+    sudo apt update
+    sudo apt install -y \
+        ca-certificates \
+        curl \
+        gnupg \
+        lsb-release
+
+    # Add Docker’s official GPG key:
+    sudo mkdir -p /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+        sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+    # Set up the Docker repository:
+    echo \
+    "deb [arch=$(dpkg --print-architecture) \
+    signed-by=/etc/apt/keyrings/docker.gpg] \
+    https://download.docker.com/linux/ubuntu \
+    $(lsb_release -cs) stable" | \
+    sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+    # Install Docker Engine:
+    sudo apt update
+    sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+    # --- Nvidia Container Toolkit ---
+    # Make sure nvidia container toolkit is installed
+    dpkg -l | grep nvidia-container-toolkit
+
+    # Else install it (see https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
+    curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
+  && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+    sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+    sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+    sudo apt-get update
+    export NVIDIA_CONTAINER_TOOLKIT_VERSION=1.17.8-1
+  sudo apt-get install -y \
+      nvidia-container-toolkit=${NVIDIA_CONTAINER_TOOLKIT_VERSION} \
+      nvidia-container-toolkit-base=${NVIDIA_CONTAINER_TOOLKIT_VERSION} \
+      libnvidia-container-tools=${NVIDIA_CONTAINER_TOOLKIT_VERSION} \
+      libnvidia-container1=${NVIDIA_CONTAINER_TOOLKIT_VERSION}
+
+    # --- Cosmos Container ---
+    cd ~/src/cosmos-predict2
+    docker build -t cosmos-predict2-local -f Dockerfile .
+    ```
+
+<!--
+2. Setup Docker Container (by installing nvidia container toolkit)
+    ```bash
+    curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
+  && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+    sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+    sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+
+    docker pull nvcr.io/nvidia/cosmos/cosmos-predict2-container:1.2
+    ```
+-->
+
+<!--
+2. Install Anaconda
+    ```bash
+    wget https://repo.anaconda.com/archive/Anaconda3-2024.10-1-Linux-x86_64.sh
+    bash Anaconda3-2024.10-1-Linux-x86_64.sh
+
+    # open new bash!
+    export PATH="$HOME/anaconda3/bin:$PATH"
+    conda init
+    ```
+
+3. Setup Env
+    ```bash
+    # install uv + just
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    source $HOME/.local/bin/env
+    uv tool install rust-just
+
+    # install dependencies/conda env
+    uv lock
+
+    wget https://developer.download.nvidia.com/compute/cuda/12.6.0/local_installers/cuda_12.6.0_560.28.03_linux.run
+    sudo sh cuda_12.6.0_560.28.03_linux.run
+    export PATH=/usr/local/cuda-12.6/bin:$PATH
+    export LD_LIBRARY_PATH=/usr/local/cuda-12.6/lib64:$LD_LIBRARY_PATH
+    source ~/.bashrc
+
+
+
+
+    just install-conda
     conda activate cosmos-predict2
+    export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
+    just install-conda
+    pip install torch torchvision --extra-index-url https://download.pytorch.org/whl/cu126
+    just install-conda
+    pip install \
+        nvidia-cusparselt-cu12==0.6.3 \
+        nvidia-cublas-cu12==12.6.4.1 \
+        nvidia-cuda-runtime-cu12==12.6.77 \
+        nvidia-cudnn-cu12==9.5.1.17 \
+        nvidia-cusolver-cu12==11.7.1.2 \
+        nvidia-cufft-cu12==11.3.0.4 \
+        nvidia-cusparse-cu12==12.5.4.2 \
+        nvidia-curand-cu12==10.3.7.77 \
+        nvidia-nvjitlink-cu12==12.6.85 \
+        nvidia-cuda-nvrtc-cu12==12.6.77 \
+        nvidia-cuda-cupti-cu12==12.6.80
 
-    bash scripts/install_decord_arm.sh
-    pip install -r requirements-conda.txt
-    pip install flash-attn==2.6.3 --no-build-isolation
-    ln -sf $CONDA_PREFIX/lib/python3.10/site-packages/nvidia/*/include/* $CONDA_PREFIX/include/
-    ln -sf $CONDA_PREFIX/lib/python3.10/site-packages/nvidia/*/include/* $CONDA_PREFIX/include/python3.10
-    CUDA_HOME=$CONDA_PREFIX pip install transformer-engine[pytorch]==1.13.0
-    CUDA_HOME=$CONDA_PREFIX pip install natten==0.21.0
+    # test
+    python -c "import torch; print(torch.__version__)"
+    pip check
 
-    # Apex library for training (optional if inference only)
-    CUDA_HOME=$CONDA_PREFIX pip install -v --disable-pip-version-check --no-cache-dir --no-build-isolation --config-settings "--build-option=--cpp_ext --cuda_ext" git+https://github.com/NVIDIA/apex.git
+    # export of your env
+    pip freeze > requirements.txt
 
-    # Verify setup
-    CUDA_HOME=$CONDA_PREFIX python scripts/test_environment.py
+    # install train dependencies
+    just install-training
     ```
 
 3. Install project
     ```bash
     pip install -e .
     ```
+-->
 
-4. Download Pretrained model
+3. Download Pretrained model
     1. Make Huggingface Account + create a Access Token (somewhere in the settings)
     2. Go to https://huggingface.co/nvidia/Cosmos-Predict2-2B-Video2World and accept their terms (you have to click on "Expand to review access" in the "You need to agree to share your contact information to access this model" area)
     3. Then go back to your bash/console and login with: huggingface-cli login -> as password use the generated token
     4. Start the downloading proces of the prediction model: `nohup huggingface-cli download nvidia/Cosmos-Predict2-2B-Video2World > download_model.log 2>&1 &` -> check progress/finish with: `cat download_model.log` or with `ps aux | grep huggingface-cli`
 
+
+### Running
+
+```
+# Start docker
+docker run --gpus all -it --rm \
+-v ~/src/cosmos-predict2:/workspace \
+-v /path/to/datasets:/workspace/datasets \
+-v ~/src/cosmos-predict2/checkpoints:/workspace/checkpoints \
+[CONTAINER_NAME]
+
+# Verify Installation/Env
+python /workspace/scripts/test_environment.py
+```
 
 <br><br><br><br>
 
