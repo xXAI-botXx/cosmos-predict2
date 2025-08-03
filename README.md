@@ -211,7 +211,6 @@ This repo tries out the Cosmos-2 Model for the Phygen Dataset/Benchmark.
     ```
 -->
 
-> **Next step maybe not needed**
 3. Download Pretrained model
     1. Make Huggingface Account + create a Access Token (somewhere in the settings)
     2. Go to https://huggingface.co/nvidia/Cosmos-Predict2-2B-Video2World and accept their terms (you have to click on "Expand to review access" in the "You need to agree to share your contact information to access this model" area)
@@ -219,8 +218,9 @@ This repo tries out the Cosmos-2 Model for the Phygen Dataset/Benchmark.
     4. Start the downloading proces of the prediction model: `nohup huggingface-cli download nvidia/Cosmos-Predict2-2B-Video2World > download_model.log 2>&1 &` -> check progress/finish with: `cat download_model.log` or with `ps aux | grep huggingface-cli`
     5. (After a while) Copy the model to your checkpoints -> use the last line in the download_model.txt
         ```bash
-        mkdir /home/tippolit/src/cosmos-predict2/checkpoints/nvidia && cp -r /home/tippolit/.cache/huggingface/hub/models--nvidia--Cosmos-Predict2-2B-Video2World/snapshots/f50c09f5d8ab133a90cac3f4886a6471e9ba3f18 \
-        /home/tippolit/src/cosmos-predict2/checkpoints/nvidia/Cosmos-Predict2-2B-Video2World
+        mkdir /home/tippolit/src/cosmos-predict2/checkpoints/nvidia && cp -rL /home/tippolit/.cache/huggingface/hub/models--nvidia--Cosmos-Predict2-2B-Video2World/snapshots/f50c09f5d8ab133a90cac3f4886a6471e9ba3f18 \
+        /home/tippolit/src/cosmos-predict2/checkpoints/nvidia/Cosmos-Predict2-2B-Video2World && \
+        chmod -R a+rwx /home/tippolit/src/cosmos-predict2/checkpoints/nvidia/Cosmos-Predict2-2B-Video2World
         ```
 
 <!--
@@ -262,7 +262,38 @@ python /workspace/scripts/test_environment.py
 # Create Embeddings (you have to already downloaded and converted the physgen dataset as described on top)
 python -m scripts.get_t5_embeddings --dataset_path datasets/physgen_train
 
-# ... continue
+# Start Training -> adjust the nproc_per_node with the used gpus 
+EXP=predict2_video2world_training_1a_physgen && \
+torchrun --nproc_per_node=1 --master_port=12341 -m scripts.train --config=cosmos_predict2/configs/base/config.py -- experiment=${EXP}
+
+exit
+```
+
+Or if you want to start in background:
+```bash
+# Start training in background
+docker run --gpus '"device=0"' --runtime=nvidia -d \
+-v ~/src/cosmos-predict2:/workspace \
+-v ~/src/cosmos-predict2/datasets:/workspace/datasets \
+-v ~/src/cosmos-predict2/checkpoints:/workspace/checkpoints \
+--name cosmos-train-run \
+cosmos-predict2-local \
+bash -c "cd /workspace && \
+EXP=predict2_video2world_training_1a_physgen && \
+nohup torchrun --nproc_per_node=1 --master_port=12341 \
+    -m scripts.train --config=cosmos_predict2/configs/base/config.py -- experiment=\$EXP \
+    > train.log 2>&1 & tail -f train.log"
+
+# See the logs after training
+docker logs -f cosmos-train-run
+#      or
+cat ~/src/cosmos-predict2/train.log
+
+# Check if it is still alive
+docker ps
+
+# Stop Container
+docker stop cosmos-train-run
 ```
 
 

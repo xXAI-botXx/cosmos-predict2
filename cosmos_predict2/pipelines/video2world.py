@@ -51,6 +51,18 @@ _IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", "webp"]
 _VIDEO_EXTENSIONS = [".mp4"]
 NUM_CONDITIONAL_FRAMES_KEY: str = "num_conditional_frames"
 
+def pad_video_to_length(video: torch.Tensor, target_length:int=93):
+    if video.shape == 4:
+        channels, frames, heights, width = video.shape
+    else:
+        frames, heights, width = video.shape
+        
+    if frames >= target_length:
+        return video[:, :target_length]
+    repeat_factor = target_length // frames
+    remainder = target_length % frames
+    repeated = np.concatenate([video] * repeat_factor + [video[:, :remainder]], axis=1)
+    return repeated
 
 def resize_input(video: torch.Tensor, resolution: list[int]) -> torch.Tensor:
     r"""
@@ -513,7 +525,10 @@ class Video2WorldPipeline(BasePipeline):
 
                 expected_length = self.tokenizer.get_pixel_num_frames(self.config.state_t)
                 original_length = data_batch[input_key].shape[2]
-                if original_length != expected_length:
+                print(f"original_length: {original_length}, expected_length: {expected_length}")
+                if original_length < expected_length:
+                    data_batch[input_key] = pad_video_to_length(video=data_batch[input_key], target_length=expected_length)
+                elif original_length > expected_length:
                     data_batch[input_key] = temporal_sample(data_batch[input_key], expected_length)
 
     def _augment_image_dim_inplace(self, data_batch: dict[str, torch.Tensor], input_key: str = None) -> None:

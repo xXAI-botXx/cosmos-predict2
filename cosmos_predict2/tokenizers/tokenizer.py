@@ -25,6 +25,9 @@ from imaginaire.utils import log
 from imaginaire.utils.distributed import broadcast, get_rank, sync_model_states
 from imaginaire.utils.easy_io import easy_io
 
+import os
+from huggingface_hub import hf_hub_download, HfApi
+
 __all__ = [
     "VAE",
 ]
@@ -682,14 +685,35 @@ class VAE:
         self.scale = [self.mean, 1.0 / self.std]
 
         # init model
-        self.model, self.img_mean, self.img_std, self.video_mean, self.video_std = _video_vae(
-            pretrained_path=vae_pth,
-            z_dim=z_dim,
-            load_mean_std=load_mean_std,
-            mean_std_path=mean_std_path,
-            device=device,
-            temporal_window=temporal_window,
-        )
+        try:
+            print(f"[DEBUG] Temporal Window: {temporal_window}")
+            self.model, self.img_mean, self.img_std, self.video_mean, self.video_std = _video_vae(
+                pretrained_path=vae_pth,
+                z_dim=z_dim,
+                load_mean_std=load_mean_std,
+                mean_std_path=mean_std_path,
+                device=device,
+                temporal_window=temporal_window,
+            )
+        except Exception as e:
+            raise e
+            print(f"[ERROR] Failed to find the tokenizer model: {e}\nTry to download the model...")
+
+            # download
+            repo_id = "nvidia/Cosmos-Predict2-2B-Video2World"
+            local_dir = os.path.dirname(vae_pth)
+            download_all_files_from_repo(repo_id, local_dir)
+
+            # Try again
+            print(f"Finish downloading and trying again model loading...")
+            self.model, self.img_mean, self.img_std, self.video_mean, self.video_std = _video_vae(
+                pretrained_path=vae_pth,
+                z_dim=z_dim,
+                load_mean_std=load_mean_std,
+                mean_std_path=mean_std_path,
+                device=device,
+                temporal_window=temporal_window,
+            )
         self.model = self.model.eval().requires_grad_(False)
         self.is_amp = is_amp
         if not is_amp:
@@ -724,6 +748,20 @@ class VAE:
         video_recon = video_recon.to(in_dtype)
         return video_recon
 
+def download_all_files_from_repo(repo_id, local_dir):
+    api = HfApi()
+    # List all files in the repo
+    repo_files = api.list_repo_files(repo_id)
+    
+    os.makedirs(local_dir, exist_ok=True)
+    
+    for file in repo_files:
+        local_path = os.path.join(local_dir, file)
+        if not os.path.exists(local_path):
+            print(f"Downloading {file}...")
+            hf_hub_download(repo_id=repo_id, filename=file, cache_dir=local_dir)
+        else:
+            print(f"File {file} already exists, skipping.")
 
 class TokenizerInterface(VideoTokenizerInterface):
     def __init__(self, chunk_duration: int = 81, load_mean_std=False, **kwargs):
