@@ -197,3 +197,5 @@ cython_debug/
 checkpoints/
 output/
 datasets/
+Anaconda3-2024.10-1-Linux-x86_64.sh
+cuda_12.6.0_560.28.03_linux.run

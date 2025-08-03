@@ -68,6 +68,7 @@ class PhysGenDataset(Dataset):
         self.device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
         # get data
         self.dataset = load_dataset("mspitzna/physicsgen", name=variation, trust_remote_code=True)
+        # print("Keys:", self.dataset.keys())
         self.dataset = self.dataset[mode]
         
         self.input_type = input_type
@@ -120,7 +121,10 @@ class PhysGenDataset(Dataset):
         return input_img, target_img, idx
 
 
-def save_dataset(output_real_path, output_osm_path, variation, input_type, output_type, info_print=False, progress_print=True):
+def save_dataset(output_real_path, output_osm_path, 
+                 variation, input_type, output_type,
+                 data_mode, 
+                 info_print=False, progress_print=True):
     # Clearing
     if os.path.exists(output_osm_path) and os.path.isdir(output_osm_path):
         shutil.rmtree(output_osm_path)
@@ -139,7 +143,7 @@ def save_dataset(output_real_path, output_osm_path, variation, input_type, outpu
         print(f"Created {output_real_path}.")
     
     # Load Dataset
-    dataset = PhysGenDataset(mode="test", variation=variation, input_type=input_type, output_type=output_type)
+    dataset = PhysGenDataset(mode=data_mode, variation=variation, input_type=input_type, output_type=output_type)
     data_len = len(dataset)
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=4)
 
@@ -148,9 +152,9 @@ def save_dataset(output_real_path, output_osm_path, variation, input_type, outpu
         if progress_print:
             # print(f'Progress {i+1}/{data_len}')
             prime.get_progress_bar(total=data_len, progress=i+1, 
-                                   should_clear=False, left_bar_char='|', right_bar_char='|', 
+                                   should_clear=True, left_bar_char='|', right_bar_char='|', 
                                    progress_char='#', empty_char=' ', 
-                                   front_message='Physgen Data Loading', back_message='', size=10)
+                                   front_message='Physgen Data Loading', back_message='', size=15)
 
         input_img, target_img, idx = data
         idx = idx[0].item() if isinstance(idx, torch.Tensor) else idx
@@ -217,6 +221,7 @@ def save_dataset(output_real_path, output_osm_path, variation, input_type, outpu
         cv2.imwrite(save_img, osm_img)
         if info_print:
             print(f"    -> saved osm at {save_img}")
+    print(f"\nSuccessfull saved {data_len} datapoints into {os.path.abspath(output_real_path)} & {os.path.abspath(output_osm_path)}")
 
 
 if __name__ == "__main__":
@@ -229,6 +234,7 @@ if __name__ == "__main__":
     parser.add_argument("--variation", type=str, required=True, help="PhysGen variation (e.g. box_texture, box_position, etc.)")
     parser.add_argument("--input_type", type=str, required=True, help="Input type (e.g. osm_depth)")
     parser.add_argument("--output_type", type=str, required=True, help="Output type (e.g. real_depth)")
+    parser.add_argument("--data_mode", type=str, required=True, help="Data Mode: train, test, val")
     parser.add_argument("--info_print", action="store_true", help="Print additional info")
     parser.add_argument("--no_progress", action="store_true", help="Disable progress printing")
 
@@ -240,6 +246,7 @@ if __name__ == "__main__":
         variation=args.variation,
         input_type=args.input_type,
         output_type=args.output_type,
+        data_mode=args.data_mode,
         info_print=args.info_print,
         progress_print=not args.no_progress
     )

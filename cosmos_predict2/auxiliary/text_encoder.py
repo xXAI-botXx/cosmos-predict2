@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+import shutil
 from typing import List, Tuple, Union
 
 import torch
@@ -23,6 +25,53 @@ from imaginaire.utils import log
 
 transformers.utils.logging.set_verbosity_error()
 
+# def find_model_snap_folder(checkpoint_dir, needed_files):
+
+#     # Search for Snapshot Folder
+#     for cur_file_or_folder in os.listdir(checkpoint_dir):
+#         if cur_file_or_folder == "snapshots":
+#             snapshot_root = os.path.join(checkpoint_dir, cur_file_or_folder)
+#             for snapshot_sub in os.listdir(snapshot_root):
+#                 snapshot_path = os.path.join(snapshot_root, snapshot_sub)
+#                 files = os.listdir(snapshot_path)
+#                 if all(
+#                     fname in files
+#                     for fname in needed_files
+#                 ):
+#                     return snapshot_path
+
+#     # Subfolder Search
+#     for cur_file_or_folder in os.listdir(checkpoint_dir):
+#         sub_path = os.path.join(checkpoint_dir, cur_file_or_folder)
+#         if os.path.isdir(sub_path):
+#             result = find_model_snap_folder(sub_path, needed_files=needed_files)
+#             if result is not None:
+#                 return result
+
+#     return None
+        
+def download_models(cache_dir):
+    T5TokenizerFast.from_pretrained("google-t5/t5-11b", cache_dir=cache_dir)
+    T5EncoderModel.from_pretrained("google-t5/t5-11b", cache_dir=cache_dir)
+
+def load_models(cache_dir, local_files_only, device):
+    # tokenizer_dir = find_model_snap_folder(checkpoint_dir=cache_dir, 
+    #                                         needed_files=["config.json", "pytorch_model.bin", "spiece.model", "tokenizer.json"])
+    # print(f"Found tokenizer model: {tokenizer_dir}")
+    
+    tokenizer = T5TokenizerFast.from_pretrained(
+        pretrained_model_name_or_path="google-t5/t5-11b", cache_dir=cache_dir, local_files_only=local_files_only
+    )
+    print("Successfull loaded tokenizer")
+
+    # encoder_dir = find_model_snap_folder(checkpoint_dir=cache_dir, 
+    #                                         needed_files=["model.safetensors"])
+    # print(f"Found encoder model: {encoder_dir}")
+    text_encoder = T5EncoderModel.from_pretrained(
+        pretrained_model_name_or_path="google-t5/t5-11b", cache_dir=cache_dir, local_files_only=local_files_only
+    ).to(device)
+    print("Successfull loaded encoder model")
+    return tokenizer, text_encoder
 
 class CosmosT5TextEncoder(torch.nn.Module):
     """Handles T5 text encoding operations."""
@@ -42,13 +91,17 @@ class CosmosT5TextEncoder(torch.nn.Module):
         """
         super().__init__()
         try:
-            self.tokenizer = T5TokenizerFast.from_pretrained(
-                pretrained_model_name_or_path=cache_dir, cache_dir=cache_dir, local_files_only=local_files_only
-            )
-            self.text_encoder = T5EncoderModel.from_pretrained(
-                pretrained_model_name_or_path=cache_dir, cache_dir=cache_dir, local_files_only=local_files_only
-            ).to(device)
+            try:
+                # shutil.rmtree(cache_dir)
+
+                self.tokenizer, self.text_encoder = load_models(cache_dir, local_files_only, device)
+            except Exception as e:
+                raise e
+                print(f"Got error: {e}\n Try to download the model.")
+                download_models(cache_dir)
+                self.tokenizer, self.text_encoder = load_models(cache_dir, local_files_only, device)
         except Exception as e:
+            raise e
             log.error(e)
             self.tokenizer = T5TokenizerFast.from_pretrained(
                 pretrained_model_name_or_path=model_name, cache_dir=cache_dir, local_files_only=local_files_only

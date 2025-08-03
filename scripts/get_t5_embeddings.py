@@ -46,6 +46,7 @@ def main(args) -> None:
     os.makedirs(t5_xxl_dir, exist_ok=True)
 
     # Initialize T5
+    print(f"Cache dir: {args.cache_dir}")
     encoder = CosmosT5TextEncoder(cache_dir=args.cache_dir, local_files_only=True)
 
     for meta_filename in metas_list:

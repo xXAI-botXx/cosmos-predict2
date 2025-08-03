@@ -27,15 +27,44 @@ This repo tries out the Cosmos-2 Model for the Phygen Dataset/Benchmark.
     conda activate physgen-dataset
     cd ~/src/cosmos-predict2
     python physgen_dataset.py \
-        --output_real_path ./datasets/physgen_raw/real \
-        --output_osm_path ./datasets/physgen_raw/osm \
+        --output_real_path ./datasets/physgen_train_raw/real \
+        --output_osm_path ./datasets/physgen_train_raw/osm \
         --variation sound_reflection \
         --input_type osm \
-        --output_type standard
+        --output_type standard \
+        --data_mode train
+    python physgen_dataset.py \
+        --output_real_path ./datasets/physgen_test_raw/real \
+        --output_osm_path ./datasets/physgen_test_raw/osm \
+        --variation sound_reflection \
+        --input_type osm \
+        --output_type standard \
+        --data_mode test
+    python physgen_dataset.py \
+        --output_real_path ./datasets/physgen_val_raw/real \
+        --output_osm_path ./datasets/physgen_val_raw/osm \
+        --variation sound_reflection \
+        --input_type osm \
+        --output_type standard \
+        --data_mode validation
+    ```
+4. Convert the dataset(s)
+    ```bash
     python physgen_cosmos_converter.py \
-        --input_folder ./datasets/physgen_raw/osm \
-        --target_folder ./datasets/physgen_raw/real \
-        --output_folder ./datasets/physgen
+        --input_folder ./datasets/physgen_train_raw/osm \
+        --target_folder ./datasets/physgen_train_raw/real \
+        --output_folder ./datasets/physgen_train \
+        --variation sound_reflection 
+    python physgen_cosmos_converter.py \
+        --input_folder ./datasets/physgen_test_raw/osm \
+        --target_folder ./datasets/physgen_test_raw/real \
+        --output_folder ./datasets/physgen_test \
+        --variation sound_reflection
+    python physgen_cosmos_converter.py \
+        --input_folder ./datasets/physgen_val_raw/osm \
+        --target_folder ./datasets/physgen_val_raw/real \
+        --output_folder ./datasets/physgen_val \
+        --variation sound_reflection  
     ```
 
 
@@ -83,23 +112,26 @@ This repo tries out the Cosmos-2 Model for the Phygen Dataset/Benchmark.
     # Make sure nvidia container toolkit is installed
     dpkg -l | grep nvidia-container-toolkit
 
-    # Else install it (see https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
-    curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
-  && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
-    sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
-    sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
-    sudo apt-get update
-    export NVIDIA_CONTAINER_TOOLKIT_VERSION=1.17.8-1
-  sudo apt-get install -y \
-      nvidia-container-toolkit=${NVIDIA_CONTAINER_TOOLKIT_VERSION} \
-      nvidia-container-toolkit-base=${NVIDIA_CONTAINER_TOOLKIT_VERSION} \
-      libnvidia-container-tools=${NVIDIA_CONTAINER_TOOLKIT_VERSION} \
-      libnvidia-container1=${NVIDIA_CONTAINER_TOOLKIT_VERSION}
+    # Else install it -> see https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
 
     # --- Cosmos Container ---
     cd ~/src/cosmos-predict2
     docker build -t cosmos-predict2-local -f Dockerfile .
     ```
+<!--
+    curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
+    && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+        sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+        sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+        sudo apt-get update
+        export NVIDIA_CONTAINER_TOOLKIT_VERSION=1.17.8-1
+    sudo apt-get install -y \
+        nvidia-container-toolkit=${NVIDIA_CONTAINER_TOOLKIT_VERSION} \
+        nvidia-container-toolkit-base=${NVIDIA_CONTAINER_TOOLKIT_VERSION} \
+        libnvidia-container-tools=${NVIDIA_CONTAINER_TOOLKIT_VERSION} \
+        libnvidia-container1=${NVIDIA_CONTAINER_TOOLKIT_VERSION}
+-->
+    
 
 <!--
 2. Setup Docker Container (by installing nvidia container toolkit)
@@ -179,26 +211,61 @@ This repo tries out the Cosmos-2 Model for the Phygen Dataset/Benchmark.
     ```
 -->
 
+> **Next step maybe not needed**
 3. Download Pretrained model
     1. Make Huggingface Account + create a Access Token (somewhere in the settings)
     2. Go to https://huggingface.co/nvidia/Cosmos-Predict2-2B-Video2World and accept their terms (you have to click on "Expand to review access" in the "You need to agree to share your contact information to access this model" area)
-    3. Then go back to your bash/console and login with: huggingface-cli login -> as password use the generated token
+    3. Then go back to your bash/console and login with: huggingface-cli login -> as password use the generated token (`Add token as git credential? (Y/n)` => n)
     4. Start the downloading proces of the prediction model: `nohup huggingface-cli download nvidia/Cosmos-Predict2-2B-Video2World > download_model.log 2>&1 &` -> check progress/finish with: `cat download_model.log` or with `ps aux | grep huggingface-cli`
+    5. (After a while) Copy the model to your checkpoints -> use the last line in the download_model.txt
+        ```bash
+        mkdir /home/tippolit/src/cosmos-predict2/checkpoints/nvidia && cp -r /home/tippolit/.cache/huggingface/hub/models--nvidia--Cosmos-Predict2-2B-Video2World/snapshots/f50c09f5d8ab133a90cac3f4886a6471e9ba3f18 \
+        /home/tippolit/src/cosmos-predict2/checkpoints/nvidia/Cosmos-Predict2-2B-Video2World
+        ```
+
+<!--
+4. Donwload Tokenizer (https://huggingface.co/google-t5/t5-11b)
+    1. Make Huggingface Account + create a Access Token (somewhere in the settings)
+    2. Then go back to your bash/console and login with: huggingface-cli login -> as password use the generated token (`Add token as git credential? (Y/n)` => n)
+    3. Start the downloading proces of the prediction model: `nohup huggingface-cli download google-t5/t5-11b > download_tokenizer.log 2>&1 &` -> check progress/finish with: `cat download_tokenizer.log` or with `ps aux | grep huggingface-cli`
+    4. (After a while) Copy the model to your checkpoints -> use the last line in the download_tokenizer.txt
+        ```bash
+        mkdir /home/tippolit/src/cosmos-predict2/checkpoints/google-t5 && cp -r /home/tippolit/.cache/huggingface/hub/models--google-t5--t5-11b/snapshots/90f37703b3334dfe9d2b009bfcbfbf1ac9d28ea3 \
+        /home/tippolit/src/cosmos-predict2/checkpoints/google-t5/t5-11b/
+        ```
+-->
 
 
 ### Running
 
 ```
+# Get Device Number
+nvidia-smi -L
+
+# Find the right (previously installed) image
+docker image ls
+
+# Testing
+docker run --rm --gpus all nvidia/cuda:12.2.0-base-ubuntu20.04 nvidia-smi
+docker run --rm --gpus all --runtime=nvidia nvidia/cuda:12.2.0-base-ubuntu20.04 nvidia-smi
+
 # Start docker
-docker run --gpus all -it --rm \
+docker run --gpus '"device=0"' --runtime=nvidia -it --rm \
 -v ~/src/cosmos-predict2:/workspace \
--v /path/to/datasets:/workspace/datasets \
+-v ~/src/cosmos-predict2/datasets:/workspace/datasets \
 -v ~/src/cosmos-predict2/checkpoints:/workspace/checkpoints \
-[CONTAINER_NAME]
+cosmos-predict2-local
 
 # Verify Installation/Env
 python /workspace/scripts/test_environment.py
+
+# Create Embeddings (you have to already downloaded and converted the physgen dataset as described on top)
+python -m scripts.get_t5_embeddings --dataset_path datasets/physgen_train
+
+# ... continue
 ```
+
+
 
 <br><br><br><br>
 
