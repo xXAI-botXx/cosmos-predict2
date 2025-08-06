@@ -89,11 +89,16 @@ class Dataset(Dataset):
                 f"at least {self.sequence_length} frames are required."
             )
             raise ValueError(f"Video {video_path} has insufficient frames.")
-
-        # randomly sample a sequence of frames
-        max_start_idx = total_frames - self.sequence_length
-        start_frame = np.random.randint(0, max_start_idx)
-        end_frame = start_frame + self.sequence_length
+        elif total_frames == self.sequence_length:
+            max_start_idx = 0
+            start_frame = max_start_idx
+            end_frame = start_frame + self.sequence_length
+        else:
+            # randomly sample a sequence of frames
+            max_start_idx = total_frames - self.sequence_length
+            start_frame = np.random.randint(0, max_start_idx)
+            end_frame = start_frame + self.sequence_length
+            
         frame_ids = np.arange(start_frame, end_frame).tolist()
 
         frame_data = vr.get_batch(frame_ids).asnumpy()
@@ -160,7 +165,10 @@ class Dataset(Dataset):
             warnings.warn(traceback.format_exc())
             self.wrong_number += 1
             log.info(self.wrong_number, rank0_only=False)
-            return self[np.random.randint(len(self.samples))]
+            try:
+                return self[np.random.randint(len(self.samples))]
+            except Exception:
+                raise ValueError(f"Error during getting next dataset item by index {index}.")
 
 
 if __name__ == "__main__":

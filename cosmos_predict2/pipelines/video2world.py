@@ -52,17 +52,33 @@ _VIDEO_EXTENSIONS = [".mp4"]
 NUM_CONDITIONAL_FRAMES_KEY: str = "num_conditional_frames"
 
 def pad_video_to_length(video: torch.Tensor, target_length:int=93):
-    if video.shape == 4:
+    original_device = video.device
+
+    if len(video.shape) == 5:  # or .ndim
+        batch_size, channels, frames, heights, width = video.shape  # 1, 3, 1, 256, 256
+    elif len(video.shape) == 4:    
         channels, frames, heights, width = video.shape
+        batch_size = None
     else:
-        frames, heights, width = video.shape
+        raise ValueError(f"Expected video to have 4 or 5 channels but got shape: {video.shape} (len={len(video.shape)})")
         
+    # if video have too many frames
     if frames >= target_length:
-        return video[:, :target_length]
+        if batch_size is not None:
+            return video[:, :, :target_length, :, :]
+        else:
+            return video[:, :target_length, :, :]
+
+    # if the video have too less frames
     repeat_factor = target_length // frames
     remainder = target_length % frames
-    repeated = np.concatenate([video] * repeat_factor + [video[:, :remainder]], axis=1)
-    return repeated
+
+    if batch_size is not None:
+        repeated = torch.cat([video] * repeat_factor + [video[:, :, :remainder, :, :]], dim=2)
+    else:
+        repeated = torch.cat([video] * repeat_factor + [video[:, :remainder, :, :]], dim=1)
+
+    return repeated.to(original_device)
 
 def resize_input(video: torch.Tensor, resolution: list[int]) -> torch.Tensor:
     r"""
@@ -528,8 +544,12 @@ class Video2WorldPipeline(BasePipeline):
                 print(f"original_length: {original_length}, expected_length: {expected_length}")
                 if original_length < expected_length:
                     data_batch[input_key] = pad_video_to_length(video=data_batch[input_key], target_length=expected_length)
+                    print("[INFO] Frame-Amount got extended.")
                 elif original_length > expected_length:
                     data_batch[input_key] = temporal_sample(data_batch[input_key], expected_length)
+                    print("[INFO] Frame-Amount got reduced.")
+                else:
+                    print("[INFO] No changes to the data frames are made.")
 
     def _augment_image_dim_inplace(self, data_batch: dict[str, torch.Tensor], input_key: str = None) -> None:
         input_key = self.input_image_key if input_key is None else input_key

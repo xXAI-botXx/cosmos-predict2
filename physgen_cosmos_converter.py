@@ -56,12 +56,14 @@ def convert_to_cosmos(input_folder, target_folder, output_folder, variation):
         cur_output_path = os.path.join(output_folder_videos, video_name)
 
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        fps = 1  # 1 frame per second
+        fps = 30  # 30 frames per second
         video_writer = cv2.VideoWriter(cur_output_path, fourcc, fps, (width, height))
 
-        # Alternate: 1s input image, 1s target image
-        video_writer.write(input_img_bgr)   # second 1
-        video_writer.write(target_img_bgr)  # second 2
+        # Alternate: 1s input image, 1s target image -> need 93 frames
+        for _ in range(70): # frame 0 - 69 = 70 Frames
+            video_writer.write(input_img_bgr)   
+        for _ in range(23): # frame 70 - 92 = 23 Frames
+            video_writer.write(target_img_bgr)
 
         video_writer.release()
         # print(f"🎞️ Video saved to: {cur_output_path}")
@@ -77,6 +79,7 @@ def convert_to_cosmos(input_folder, target_folder, output_folder, variation):
                                 progress_char='#', empty_char=' ', 
                                 front_message='Physgen Data Convertion', back_message='', size=15)
     print(f"\nSuccessfull saved {data_len} datapoints into {os.path.abspath(output_folder)}")
+
 
 
 if __name__ == "__main__":

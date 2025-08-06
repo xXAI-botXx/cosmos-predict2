@@ -251,6 +251,14 @@ docker run --rm --gpus all --runtime=nvidia nvidia/cuda:12.2.0-base-ubuntu20.04 
 
 # Start docker
 docker run --gpus '"device=0"' --runtime=nvidia -it --rm \
+--shm-size=8g \
+-v ~/src/cosmos-predict2:/workspace \
+-v ~/src/cosmos-predict2/datasets:/workspace/datasets \
+-v ~/src/cosmos-predict2/checkpoints:/workspace/checkpoints \
+cosmos-predict2-local
+# Or
+docker run --gpus all --runtime=nvidia -it --rm \
+--shm-size=8g \
 -v ~/src/cosmos-predict2:/workspace \
 -v ~/src/cosmos-predict2/datasets:/workspace/datasets \
 -v ~/src/cosmos-predict2/checkpoints:/workspace/checkpoints \
@@ -261,10 +269,18 @@ python /workspace/scripts/test_environment.py
 
 # Create Embeddings (you have to already downloaded and converted the physgen dataset as described on top)
 python -m scripts.get_t5_embeddings --dataset_path datasets/physgen_train
+python -m scripts.get_t5_embeddings --dataset_path datasets/physgen_val
+python -m scripts.get_t5_embeddings --dataset_path datasets/physgen_test
+
+# Dataset test
+python physgen_data_test.py
 
 # Start Training -> adjust the nproc_per_node with the used gpus 
 EXP=predict2_video2world_training_1a_physgen && \
 torchrun --nproc_per_node=1 --master_port=12341 -m scripts.train --config=cosmos_predict2/configs/base/config.py -- experiment=${EXP}
+# or
+EXP=predict2_video2world_training_1a_physgen && \
+torchrun --nproc_per_node=4 --master_port=12341 -m scripts.train --config=cosmos_predict2/configs/base/config.py -- experiment=${EXP}
 
 exit
 ```
@@ -273,6 +289,7 @@ Or if you want to start in background:
 ```bash
 # Start training in background
 docker run --gpus '"device=0"' --runtime=nvidia -d \
+--shm-size=8g \
 -v ~/src/cosmos-predict2:/workspace \
 -v ~/src/cosmos-predict2/datasets:/workspace/datasets \
 -v ~/src/cosmos-predict2/checkpoints:/workspace/checkpoints \
@@ -281,6 +298,19 @@ cosmos-predict2-local \
 bash -c "cd /workspace && \
 EXP=predict2_video2world_training_1a_physgen && \
 nohup torchrun --nproc_per_node=1 --master_port=12341 \
+    -m scripts.train --config=cosmos_predict2/configs/base/config.py -- experiment=\$EXP \
+    > train.log 2>&1 & tail -f train.log"
+# or
+docker run --gpus all --runtime=nvidia -d \
+--shm-size=8g \
+-v ~/src/cosmos-predict2:/workspace \
+-v ~/src/cosmos-predict2/datasets:/workspace/datasets \
+-v ~/src/cosmos-predict2/checkpoints:/workspace/checkpoints \
+--name cosmos-train-run \
+cosmos-predict2-local \
+bash -c "cd /workspace && \
+EXP=predict2_video2world_training_1a_physgen && \
+nohup torchrun --nproc_per_node=4 --master_port=12341 \
     -m scripts.train --config=cosmos_predict2/configs/base/config.py -- experiment=\$EXP \
     > train.log 2>&1 & tail -f train.log"
 
@@ -293,7 +323,7 @@ cat ~/src/cosmos-predict2/train.log
 docker ps
 
 # Stop Container
-docker stop cosmos-train-run
+docker stop cosmos-train-run && docker rm /cosmos-train-run
 ```
 
 

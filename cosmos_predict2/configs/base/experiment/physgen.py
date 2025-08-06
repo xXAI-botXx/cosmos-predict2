@@ -25,19 +25,35 @@ cs = ConfigStore.instance()
 # -----------
 # Data Config
 # -----------
-physgen_dataset = L(Dataset)(
+physgen_train_dataset = L(Dataset)(
     dataset_dir="datasets/physgen_train",
-    num_frames=1, # 1 Input Frame + 1 Target Frame -> 1 F/S -> 2 Seconds Video ==> 1 Input Frame
+    num_frames=93, # 1 Input Frame + 1 Target Frame -> 1 F/S -> 2 Seconds Video ==> 1 Input Frame
                     # BUT during tokenization buffer got added with 93 frames, so 93
     video_size=(256, 256),  # 256 resolution, 1:1 aspect ratio
 )
 
 dataloader_physgen_train = L(DataLoader)(
-    dataset=physgen_dataset,
-    sampler=L(get_sampler)(dataset=physgen_dataset),
+    dataset=physgen_train_dataset,
+    sampler=L(get_sampler)(dataset=physgen_train_dataset),
     batch_size=1,
     drop_last=True,
-    num_workers=8,
+    num_workers=2,
+    pin_memory=True,
+)
+
+physgen_val_dataset = L(Dataset)(
+    dataset_dir="datasets/physgen_train",
+    num_frames=93, # 1 Input Frame + 1 Target Frame -> 1 F/S -> 2 Seconds Video ==> 1 Input Frame
+                    # BUT during tokenization buffer got added with 93 frames, so 93
+    video_size=(256, 256),  # 256 resolution, 1:1 aspect ratio
+)
+
+dataloader_physgen_val = L(DataLoader)(
+    dataset=physgen_val_dataset,
+    sampler=L(get_sampler)(dataset=physgen_val_dataset),
+    batch_size=1,
+    drop_last=True,
+    num_workers=2,
     pin_memory=True,
 )
 
@@ -52,7 +68,7 @@ predict2_video2world_training_1a_physgen = dict(
         {"override /optimizer": "fusedadamw"},
         {"override /scheduler": "lambdalinear"},
         {"override /ckpt_type": "standard"},
-        {"override /dataloader_val": "mock"},
+        # {"override /dataloader_val": "mock"},
         "_self_",
     ],
     job=dict(
@@ -66,6 +82,8 @@ predict2_video2world_training_1a_physgen = dict(
                 ema=dict(enabled=True),     # enable EMA during training
                 prompt_refiner_config=dict(enabled=False),  # disable prompt refiner during training
                 guardrail_config=dict(enabled=False),   # disable guardrail during training
+                max_num_conditional_frames=1,
+                min_num_conditional_frames=1,
             ),
         )
     ),
@@ -73,12 +91,13 @@ predict2_video2world_training_1a_physgen = dict(
         context_parallel_size=1,            # context parallelism size
     ),
     dataloader_train=dataloader_physgen_train,
+    dataloader_val=dataloader_physgen_val,
     trainer=dict(
         distributed_parallelism="fsdp",
         callbacks=dict(
             iter_speed=dict(hit_thres=10),
         ),
-        max_iter=20000*4,                      # maximum number of iterations
+        max_iter=19000*10,                      # maximum number of iterations
     ),
     checkpoint=dict(
         save_iter=1000,                      # checkpoints will be saved every 500 iterations.
@@ -87,9 +106,9 @@ predict2_video2world_training_1a_physgen = dict(
         lr=2 ** (-14.5),
     ),
     scheduler=dict(
-        warm_up_steps=[0],
-        cycle_lengths=[1_000],              # adjust considering max_iter
-        f_max=[0.6],
+        warm_up_steps=[2_000],
+        cycle_lengths=[20_000],              # adjust considering max_iter
+        f_max=[0.99],
         f_min=[0.0],
     ),
 )
