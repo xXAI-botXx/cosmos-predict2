@@ -250,7 +250,7 @@ docker run --rm --gpus all nvidia/cuda:12.2.0-base-ubuntu20.04 nvidia-smi
 docker run --rm --gpus all --runtime=nvidia nvidia/cuda:12.2.0-base-ubuntu20.04 nvidia-smi
 
 # Start docker
-docker run --gpus '"device=0"' --runtime=nvidia -it --rm \
+docker run --gpus '"device=0,1"' --runtime=nvidia -it --rm \
 --shm-size=8g \
 -v ~/src/cosmos-predict2:/workspace \
 -v ~/src/cosmos-predict2/datasets:/workspace/datasets \
@@ -266,6 +266,10 @@ cosmos-predict2-local
 
 # Verify Installation/Env
 python /workspace/scripts/test_environment.py
+
+# Another tests
+nvidia-smi
+python3 -c "import torch; print(torch.cuda.device_count()); print(torch.cuda.get_device_name(0))"
 
 # Create Embeddings (you have to already downloaded and converted the physgen dataset as described on top)
 python -m scripts.get_t5_embeddings --dataset_path datasets/physgen_train
@@ -325,6 +329,39 @@ docker ps
 # Stop Container
 docker stop cosmos-train-run && docker rm /cosmos-train-run
 ```
+
+<!--
+Putting the checkpoints to another disk:
+    1. Looking the disks
+df -h
+df -h ~/src/cosmos-predict2
+ls /ssd0
+ls /ssd0/tippolit
+
+    2. Making the folder and transfer data
+mkdir /ssd0/tippolit/cosmos-predict2
+rsync -aP ~/src/cosmos-predict2/checkpoints /ssd0/tippolit/checkpoints
+
+docker run --gpus '"device=0,1,2,3"' --runtime=nvidia -d \
+--shm-size=8g \
+-v ~/src/cosmos-predict2:/workspace \
+-v ~/src/cosmos-predict2/datasets:/workspace/datasets \
+-v /ssd0/tippolit/checkpoints:/workspace/checkpoints \
+--name cosmos-train-run \
+cosmos-predict2-local \
+bash -c "cd /workspace && \
+EXP=predict2_video2world_training_1a_physgen && \
+nohup torchrun --nproc_per_node=4 --master_port=12341 \
+    -m scripts.train --config=cosmos_predict2/configs/base/config.py -- experiment=\$EXP \
+    > train.log 2>&1 & tail -f train.log"
+
+# Testing
+docker run --gpus '"device=0,1,2,3"' --runtime=nvidia -it --shm-size=8g --rm --name test-gpu cosmos-predict2-local bash
+    -> then: 
+        - nvidia-smi
+        - python -c "import torch; print(torch.cuda.is_available())"
+        - python3 -c "import torch; print(torch.cuda.device_count()); print(torch.cuda.get_device_name(0))"
+-->
 
 
 
