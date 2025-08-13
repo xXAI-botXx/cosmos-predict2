@@ -116,7 +116,7 @@ This repo tries out the Cosmos-2 Model for the Phygen Dataset/Benchmark.
 
     # --- Cosmos Container ---
     cd ~/src/cosmos-predict2
-    docker build -t cosmos-predict2-local -f Dockerfile .
+    docker build --no-cache -t cosmos-predict2-local -f Dockerfile .
     ```
 <!--
     curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
@@ -238,12 +238,30 @@ This repo tries out the Cosmos-2 Model for the Phygen Dataset/Benchmark.
 
 ### Running
 
+<!--
+docker run --rm nvcr.io/nvidia/pytorch:25.04-py3 nvcc --version
+-->
+
 ```
 # Get Device Number
 nvidia-smi -L
 
 # Find the right (previously installed) image
 docker image ls
+
+# Check versions (multiline commands)
+echo -e "\n> CUDA TEST start <\n\n---------\nHOST GPU Versions\n---------\n" && \
+echo "NVIDIA Driver Version: $(nvidia-smi --query-gpu=driver_version --format=csv,noheader)" && echo "CUDA Version: $(nvcc --version | grep release | awk '{print $6}' | sed 's/,//')" && \
+echo -e "\n---------\nDOCKER GPU Versions\n---------\n" && \
+docker run --gpus all --runtime=nvidia --rm \
+--shm-size=8g \
+-v ~/src/cosmos-predict2:/workspace \
+-v ~/src/cosmos-predict2/datasets:/workspace/datasets \
+-v ~/src/cosmos-predict2/checkpoints:/workspace/checkpoints \
+cosmos-predict2-local \
+/bin/bash -c 'echo "CUDA Version:" $(nvcc --version | grep release | awk "{print \$6}" | sed "s/,//")' && \
+echo -e "\n> CUDA TEST end <\n" 
+
 
 # Testing
 docker run --rm --gpus all nvidia/cuda:12.2.0-base-ubuntu20.04 nvidia-smi
