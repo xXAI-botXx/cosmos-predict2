@@ -29,14 +29,12 @@ RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && \
     apt-get install -y --no-install-recommends \
         curl \
+        ffmpeg \
         git \
         libgl1 \
         libglib2.0-0 \
         tree \
         wget
-
-# Install pkgx: https://pkgx.sh/
-RUN curl -sSf https://pkgx.sh | sh
 
 # Install uv: https://docs.astral.sh/uv/getting-started/installation/
 # https://github.com/astral-sh/uv-docker-example/blob/main/Dockerfile
