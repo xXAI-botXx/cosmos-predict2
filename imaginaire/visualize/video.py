@@ -1,18 +1,19 @@
-# -----------------------------------------------------------------------------
-# Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES.
-# All rights reserved.
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
 #
-# This codebase constitutes NVIDIA proprietary technology and is strictly
-# confidential. Any unauthorized reproduction, distribution, or disclosure
-# of this code, in whole or in part, outside NVIDIA is strictly prohibited
-# without prior written consent.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# For inquiries regarding the use of this code in other NVIDIA proprietary
-# projects, please contact the Deep Imagination Research Team at
-# dir@exchange.nvidia.com.
-# -----------------------------------------------------------------------------
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-from typing import IO, Any, Union
+from typing import IO, Any
 
 import cv2
 import numpy as np
@@ -42,7 +43,7 @@ def save_video(grid, video_name, fps=30):
 
 
 def save_img_or_video(
-    sample_C_T_H_W_in01: Tensor, save_fp_wo_ext: Union[str, IO[Any]], fps: int = 24, quality=None, ffmpeg_params=None
+    sample_C_T_H_W_in01: Tensor, save_fp_wo_ext: str | IO[Any], fps: int = 24, quality=None, ffmpeg_params=None
 ) -> None:
     """
     Save a tensor as an image or video file based on shape
@@ -53,9 +54,9 @@ def save_img_or_video(
         fps (int): Frames per second for video. Default is 24.
     """
     assert sample_C_T_H_W_in01.ndim == 4, "Only support 4D tensor"
-    assert isinstance(save_fp_wo_ext, str) or hasattr(
-        save_fp_wo_ext, "write"
-    ), "save_fp_wo_ext must be a string or file-like object"
+    assert isinstance(save_fp_wo_ext, str) or hasattr(save_fp_wo_ext, "write"), (
+        "save_fp_wo_ext must be a string or file-like object"
+    )
 
     if torch.is_floating_point(sample_C_T_H_W_in01):
         sample_C_T_H_W_in01 = sample_C_T_H_W_in01.clamp(0, 1)

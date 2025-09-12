@@ -31,11 +31,11 @@ LoRA (Low-Rank Adaptation) is a parameter-efficient fine-tuning technique that a
 - **Preserved Base Capabilities**: Retains the original model's capabilities while adding domain-specific improvements
 
 We support LoRA post-training with example datasets:
-- [post-training_video2world_cosmos_nemo_assets](/documentations/post-training_video2world_cosmos_nemo_assets.md)
+- [post-training_video2world_cosmos_nemo_assets](./post-training_video2world_cosmos_nemo_assets.md)
   - Basic examples with a small 4 videos dataset (can be adapted for LoRA)
-- [post-training_video2world_agibot_fisheye](/documentations/post-training_video2world_agibot_fisheye.md)
+- [post-training_video2world_agibot_fisheye](./post-training_video2world_agibot_fisheye.md)
   - Examples with fisheye-view dataset (can be adapted for LoRA)
-- [post-training_video2world_gr00t](/documentations/post-training_video2world_gr00t.md)
+- [post-training_video2world_gr00t](./post-training_video2world_gr00t.md)
   - Examples with GR00T-dreams datasets (can be adapted for LoRA)
 
 ### Cosmos-NeMo-Assets LoRA Configurations
@@ -383,7 +383,6 @@ For example, if a LoRA post-trained checkpoint with 1000 iterations is to be use
 
 ```bash
 export NUM_GPUS=8
-export PYTHONPATH=$(pwd)
 
 torchrun --nproc_per_node=${NUM_GPUS} examples/video2world_lora.py \
     --model_size 2B \
@@ -406,7 +405,6 @@ The 14B model can be run similarly by changing the `--model_size` and using the 
 
 ```bash
 export NUM_GPUS=8
-export PYTHONPATH=$(pwd)
 
 torchrun --nproc_per_node=${NUM_GPUS} examples/video2world_lora.py \
     --model_size 14B \
@@ -651,7 +649,7 @@ checkpoints/posttraining/video2world_lora/2b_cosmos_nemo_assets/checkpoints/
 For a Succesful training, you should see the logs like this:
 
 ```
-[07-10 22:14:27|SUCCESS|imaginaire/trainer.py:232:train] Done with training.  
+[07-10 22:14:27|SUCCESS|imaginaire/trainer.py:232:train] Done with training.
 ```
 
 
@@ -663,7 +661,6 @@ Use the LoRA-trained checkpoints for inference:
 **2B Video2World LoRA Inference:**
 ```bash
 export NUM_GPUS=8
-export PYTHONPATH=$(pwd)
 
 torchrun --nproc_per_node=${NUM_GPUS} examples/video2world_lora.py \
     --model_size 2B \
@@ -683,7 +680,6 @@ torchrun --nproc_per_node=${NUM_GPUS} examples/video2world_lora.py \
 **14B Video2World LoRA Inference:**
 ```bash
 export NUM_GPUS=8
-export PYTHONPATH=$(pwd)
 
 torchrun --nproc_per_node=${NUM_GPUS} examples/video2world_lora.py \
     --model_size 14B \
@@ -742,5 +738,5 @@ The following comparison demonstrates the effectiveness of LoRA post-training co
 - [Video2World Inference Guide](inference_video2world.md) - Standard inference without LoRA
 - [Video2World Post-Training Guide](post-training_video2world.md) - Full model post-training
 - [Cosmos-NeMo-Assets Post-Training](post-training_video2world_cosmos_nemo_assets.md) - Original dataset guide
-- [Setup Guide](setup.md) - Environment setup and checkpoint download instructions  
+- [Setup Guide](setup.md) - Environment setup and checkpoint download instructions
 - [Performance Guide](performance.md) - Hardware requirements and optimization recommendations

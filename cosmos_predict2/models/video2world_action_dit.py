@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -21,6 +20,7 @@ from einops import rearrange
 
 from cosmos_predict2.conditioner import DataType
 from cosmos_predict2.models.video2world_dit import MinimalV1LVGDiT
+from imaginaire.utils.graph import create_cuda_graph
 
 
 class Mlp(nn.Module):
@@ -69,14 +69,14 @@ class ActionConditionedMinimalV1LVGDiT(MinimalV1LVGDiT):
         x_B_C_T_H_W: torch.Tensor,
         timesteps_B_T: torch.Tensor,
         crossattn_emb: torch.Tensor,
-        condition_video_input_mask_B_C_T_H_W: Optional[torch.Tensor] = None,
-        fps: Optional[torch.Tensor] = None,
-        padding_mask: Optional[torch.Tensor] = None,
-        data_type: Optional[DataType] = DataType.VIDEO,
+        condition_video_input_mask_B_C_T_H_W: torch.Tensor | None = None,
+        fps: torch.Tensor | None = None,
+        padding_mask: torch.Tensor | None = None,
+        data_type: DataType | None = DataType.VIDEO,
         use_cuda_graphs: bool = False,
-        action: Optional[torch.Tensor] = None,
+        action: torch.Tensor | None = None,
         **kwargs,
-    ) -> torch.Tensor | List[torch.Tensor] | Tuple[torch.Tensor, List[torch.Tensor]]:
+    ) -> torch.Tensor | list[torch.Tensor] | tuple[torch.Tensor, list[torch.Tensor]]:
         del kwargs
 
         if data_type == DataType.VIDEO:
@@ -92,15 +92,18 @@ class ActionConditionedMinimalV1LVGDiT(MinimalV1LVGDiT):
         action_emb_B_D = self.action_embedder_B_D(action)
         action_emb_B_3D = self.action_embedder_B_3D(action)
 
-        assert isinstance(
-            data_type, DataType
-        ), f"Expected DataType, got {type(data_type)}. We need discuss this flag later."
+        assert isinstance(data_type, DataType), (
+            f"Expected DataType, got {type(data_type)}. We need discuss this flag later."
+        )
         assert not (self.training and use_cuda_graphs), "CUDA Graphs are supported only for inference"
         x_B_T_H_W_D, rope_emb_L_1_1_D, extra_pos_emb_B_T_H_W_D_or_T_H_W_B_D = self.prepare_embedded_sequence(
             x_B_C_T_H_W,
             fps=fps,
             padding_mask=padding_mask,
         )
+
+        if self.crossattn_proj is not None:
+            crossattn_emb = self.crossattn_proj(crossattn_emb)
 
         if timesteps_B_T.ndim == 1:
             timesteps_B_T = timesteps_B_T.unsqueeze(1)
@@ -120,9 +123,9 @@ class ActionConditionedMinimalV1LVGDiT(MinimalV1LVGDiT):
         self.crossattn_emb = crossattn_emb
 
         if extra_pos_emb_B_T_H_W_D_or_T_H_W_B_D is not None:
-            assert (
-                x_B_T_H_W_D.shape == extra_pos_emb_B_T_H_W_D_or_T_H_W_B_D.shape
-            ), f"{x_B_T_H_W_D.shape} != {extra_pos_emb_B_T_H_W_D_or_T_H_W_B_D.shape}"
+            assert x_B_T_H_W_D.shape == extra_pos_emb_B_T_H_W_D_or_T_H_W_B_D.shape, (
+                f"{x_B_T_H_W_D.shape} != {extra_pos_emb_B_T_H_W_D_or_T_H_W_B_D.shape}"
+            )
 
         if use_cuda_graphs:
             shapes_key = create_cuda_graph(

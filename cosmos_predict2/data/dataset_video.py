@@ -17,7 +17,7 @@ import os
 import pickle
 import traceback
 import warnings
-from typing import Any, Tuple
+from typing import Any
 
 import numpy as np
 import torch
@@ -25,7 +25,8 @@ from decord import VideoReader, cpu
 from torch.utils.data import Dataset
 from torchvision import transforms as T
 
-from cosmos_predict2.data.dataset_utils import _NUM_T5_TOKENS, _T5_EMBED_DIM, Resize_Preprocess, ToTensorVideo
+from cosmos_predict2.data.dataset_utils import Resize_Preprocess, ToTensorVideo
+from imaginaire.auxiliary.text_encoder import CosmosTextEncoderConfig
 from imaginaire.utils import log
 
 """
@@ -79,12 +80,12 @@ class Dataset(Dataset):
     def __len__(self) -> int:
         return len(self.video_paths)
 
-    def _load_video(self, video_path) -> Tuple[np.ndarray, float]:
+    def _load_video(self, video_path) -> tuple[np.ndarray, float]:
         vr = VideoReader(video_path, ctx=cpu(0), num_threads=2)
         total_frames = len(vr)
         if total_frames < self.sequence_length:
             # If there are not enough frames, let it fail
-            warnings.warn(
+            warnings.warn(  # noqa: B028
                 f"Video {video_path} has only {total_frames} frames, "
                 f"at least {self.sequence_length} frames are required."
             )
@@ -111,7 +112,7 @@ class Dataset(Dataset):
         del vr  # delete the reader to avoid memory leak
         return frame_data, fps
 
-    def _get_frames(self, video_path: str) -> Tuple[torch.Tensor, float]:
+    def _get_frames(self, video_path: str) -> tuple[torch.Tensor, float]:
         frames, fps = self._load_video(video_path)
         frames = frames.astype(np.uint8)
         frames = torch.from_numpy(frames).permute(0, 3, 1, 2)  # [T, C, H, W]
@@ -139,13 +140,25 @@ class Dataset(Dataset):
 
             # Just add these to fit the interface
             with open(t5_embedding_path, "rb") as f:
-                t5_embedding = pickle.load(f)[0]  # [n_tokens, _T5_EMBED_DIM]
+                t5_embedding_raw = pickle.load(f)
+                assert isinstance(t5_embedding_raw, list)
+                assert len(t5_embedding_raw) == 1
+                t5_embedding = t5_embedding_raw[0]  # [n_tokens, CosmosTextEncoderConfig.EMBED_DIM]
+                assert isinstance(t5_embedding, np.ndarray)
+                assert len(t5_embedding.shape) == 2
             n_tokens = t5_embedding.shape[0]
-            if n_tokens < _NUM_T5_TOKENS:
+            if n_tokens < CosmosTextEncoderConfig.NUM_TOKENS:
                 t5_embedding = np.concatenate(
-                    [t5_embedding, np.zeros((_NUM_T5_TOKENS - n_tokens, _T5_EMBED_DIM), dtype=np.float32)], axis=0
+                    [
+                        t5_embedding,
+                        np.zeros(
+                            (CosmosTextEncoderConfig.NUM_TOKENS - n_tokens, CosmosTextEncoderConfig.EMBED_DIM),
+                            dtype=np.float32,
+                        ),
+                    ],
+                    axis=0,
                 )
-            t5_text_mask = torch.zeros(_NUM_T5_TOKENS, dtype=torch.int64)
+            t5_text_mask = torch.zeros(CosmosTextEncoderConfig.NUM_TOKENS, dtype=torch.int64)
             t5_text_mask[:n_tokens] = 1
 
             data["t5_text_embeddings"] = torch.from_numpy(t5_embedding)
@@ -157,12 +170,12 @@ class Dataset(Dataset):
 
             return data
         except Exception:
-            warnings.warn(
+            warnings.warn(  # noqa: B028
                 f"Invalid data encountered: {self.video_paths[index]}. Skipped "
                 f"(by randomly sampling another sample in the same dataset)."
             )
-            warnings.warn("FULL TRACEBACK:")
-            warnings.warn(traceback.format_exc())
+            warnings.warn("FULL TRACEBACK:")  # noqa: B028
+            warnings.warn(traceback.format_exc())  # noqa: B028
             self.wrong_number += 1
             log.info(self.wrong_number, rank0_only=False)
             try:
@@ -182,12 +195,10 @@ if __name__ == "__main__":
     for idx in indices:
         data = dataset[idx]
         log.info(
-            (
-                f"{idx=} "
-                f"{data['video'].sum()=}\n"
-                f"{data['video'].shape=}\n"
-                f"{data['video_name']=}\n"
-                f"{data['t5_text_embeddings'].shape=}\n"
-                "---"
-            )
+            f"{idx=} "
+            f"{data['video'].sum()=}\n"
+            f"{data['video'].shape=}\n"
+            f"{data['video_name']=}\n"
+            f"{data['t5_text_embeddings'].shape=}\n"
+            "---"
         )

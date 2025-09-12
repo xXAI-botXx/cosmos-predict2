@@ -194,8 +194,11 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
-checkpoints/
-output/
-datasets/
+/checkpoints
+/output
+/datasets
+/examples/**/checkpoints
+/examples/**/output
+/examples/**/datasets
 Anaconda3-2024.10-1-Linux-x86_64.sh
 cuda_12.6.0_560.28.03_linux.run

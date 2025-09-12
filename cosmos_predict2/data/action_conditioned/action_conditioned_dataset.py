@@ -39,6 +39,7 @@ from cosmos_predict2.data.action_conditioned.dataset_utils import (
     euler2rotm,
     rotm2euler,
 )
+from imaginaire.auxiliary.text_encoder import CosmosTextEncoderConfig
 
 
 class ActionConditionedDataset(Dataset):
@@ -172,7 +173,7 @@ class ActionConditionedDataset(Dataset):
 
     def _load_and_process_ann_file(self, ann_file):
         samples = []
-        with open(ann_file, "r") as f:
+        with open(ann_file) as f:
             ann = json.load(f)
 
         n_frames = len(ann["state"])
@@ -337,7 +338,7 @@ class ActionConditionedDataset(Dataset):
             sample = self.samples[index]
             ann_file = sample["ann_file"]
             frame_ids = sample["frame_ids"]
-            with open(ann_file, "r") as f:
+            with open(ann_file) as f:
                 label = json.load(f)
             arm_states, gripper_states = self._get_robot_states(label, frame_ids)
             actions = self._get_actions(arm_states, gripper_states, self.accumulate_action)
@@ -367,8 +368,10 @@ class ActionConditionedDataset(Dataset):
                 t5_embeddings = np.squeeze(np.load(ann_file.replace(".json", ".npy")))
                 data["t5_text_embeddings"] = torch.from_numpy(t5_embeddings).cuda()
             else:
-                data["t5_text_embeddings"] = torch.zeros(512, 1024, dtype=torch.bfloat16).cuda()
-            data["t5_text_mask"] = torch.ones(512, dtype=torch.int64).cuda()
+                data["t5_text_embeddings"] = torch.zeros(
+                    CosmosTextEncoderConfig.NUM_TOKENS, CosmosTextEncoderConfig.EMBED_DIM, dtype=torch.bfloat16
+                ).cuda()
+            data["t5_text_mask"] = torch.ones(CosmosTextEncoderConfig.NUM_TOKENS, dtype=torch.int64).cuda()
             data["fps"] = 4
             data["image_size"] = 256 * torch.ones(4).cuda()  # TODO: Does this matter?
             data["num_frames"] = self.sequence_length
@@ -376,12 +379,12 @@ class ActionConditionedDataset(Dataset):
 
             return data
         except Exception:
-            warnings.warn(
+            warnings.warn(  # noqa: B028
                 f"Invalid data encountered: {self.samples[index]['ann_file']}. Skipped "
                 f"(by randomly sampling another sample in the same dataset)."
             )
-            warnings.warn("FULL TRACEBACK:")
-            warnings.warn(traceback.format_exc())
+            warnings.warn("FULL TRACEBACK:")  # noqa: B028
+            warnings.warn(traceback.format_exc())  # noqa: B028
             self.wrong_number += 1
             print(self.wrong_number)
             return self[np.random.randint(len(self.samples))]

@@ -17,6 +17,9 @@ import argparse
 import json
 import os
 
+from imaginaire.auxiliary.text_encoder import CosmosTextEncoder
+from imaginaire.lazy_config.lazy import LazyConfig
+
 # Set TOKENIZERS_PARALLELISM environment variable to avoid deadlocks with multiprocessing
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -26,10 +29,15 @@ import torch
 from megatron.core import parallel_state
 
 from cosmos_predict2.configs.base.config_text2image import (
-    PREDICT2_TEXT2IMAGE_PIPELINE_2B,
-    PREDICT2_TEXT2IMAGE_PIPELINE_14B,
+    get_cosmos_predict2_text2image_pipeline,
 )
 from cosmos_predict2.pipelines.text2image import Text2ImagePipeline
+from imaginaire.constants import (
+    CosmosPredict2Text2ImageModelSize,
+    CosmosPredict2Video2WorldAspectRatio,
+    get_cosmos_predict2_text2image_checkpoint,
+    print_environment_info,
+)
 from imaginaire.utils import distributed, log, misc
 from imaginaire.utils.io import save_image_or_video, save_text_prompts
 
@@ -40,9 +48,16 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Text to Image Generation with Cosmos Predict2")
     parser.add_argument(
         "--model_size",
-        choices=["2B", "14B"],
+        choices=CosmosPredict2Text2ImageModelSize.__args__,
         default="2B",
         help="Size of the model to use for text-to-image generation",
+    )
+    parser.add_argument(
+        "--distill_steps",
+        type=int,
+        choices=[0, 1, 2, 3, 4],
+        default=0,
+        help="1~4 for timestep-distilled inference; 0 for the original non-distilled model",
     )
     parser.add_argument(
         "--dit_path",
@@ -65,7 +80,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--negative_prompt", type=str, default="", help="Negative text prompt for image generation")
     parser.add_argument(
         "--aspect_ratio",
-        choices=["1:1", "4:3", "3:4", "16:9", "9:16"],
+        choices=CosmosPredict2Video2WorldAspectRatio.__args__,
         default="16:9",
         type=str,
         help="Aspect ratio of the generated output (width:height)",
@@ -85,29 +100,25 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Run the generation in benchmark mode. It means that generation will be rerun a few times and the average generation time will be shown.",
     )
+    parser.add_argument(
+        "--use_fast_tokenizer",
+        action="store_true",
+        help="Use fast tokenizer for generation.",
+    )
     return parser.parse_args()
 
 
-def setup_pipeline(args: argparse.Namespace, text_encoder=None) -> Text2ImagePipeline:
-    log.info(f"Using model size: {args.model_size}")
-    if args.model_size == "2B":
-        config = PREDICT2_TEXT2IMAGE_PIPELINE_2B
-        dit_path = "checkpoints/nvidia/Cosmos-Predict2-2B-Text2Image/model.pt"
-    elif args.model_size == "14B":
-        config = PREDICT2_TEXT2IMAGE_PIPELINE_14B
-        dit_path = "checkpoints/nvidia/Cosmos-Predict2-14B-Text2Image/model.pt"
-    else:
-        raise ValueError("Invalid model size. Choose either '2B' or '14B'.")
+def setup_pipeline(args: argparse.Namespace, text_encoder: CosmosTextEncoder | None = None) -> Text2ImagePipeline:
+    print_environment_info(args)
+
+    config = get_cosmos_predict2_text2image_pipeline(model_size=args.model_size, fast_tokenizer=args.use_fast_tokenizer)
     if hasattr(args, "dit_path") and args.dit_path:
         dit_path = args.dit_path
-
-    log.info(f"Using dit_path: {dit_path}")
-    # Only set up text encoder path if no encoder is provided
-    text_encoder_path = None if text_encoder is not None else "checkpoints/google-t5/t5-11b"
-    if text_encoder is not None:
-        log.info("Using provided text encoder")
     else:
-        log.info(f"Using text encoder from: {text_encoder_path}")
+        dit_path = get_cosmos_predict2_text2image_checkpoint(
+            model_size=args.model_size, fast_tokenizer=args.use_fast_tokenizer, distilled=args.distill_steps > 0
+        )
+    log.info(f"Using dit_path: {dit_path}")
 
     # Disable guardrail if requested
     if args.disable_guardrail:
@@ -122,6 +133,13 @@ def setup_pipeline(args: argparse.Namespace, text_encoder=None) -> Text2ImagePip
     # Floating-point precision settings.
     torch.backends.cudnn.allow_tf32 = True
     torch.backends.cuda.matmul.allow_tf32 = True
+
+    # Save config
+    output_path = os.path.splitext(args.save_path)[0]
+    output_dir = os.path.dirname(output_path)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+    LazyConfig.save_yaml(config, f"{output_path}.yaml")
 
     # Check if we're in a distributed environment (called from text2world)
     is_distributed = parallel_state.is_initialized() and torch.distributed.is_initialized()
@@ -142,6 +160,7 @@ def setup_pipeline(args: argparse.Namespace, text_encoder=None) -> Text2ImagePip
                 device="cuda",
                 torch_dtype=torch.bfloat16,
                 load_ema_to_reg=args.load_ema,
+                distill_steps=args.distill_steps,
             )
             return pipe
         else:
@@ -173,10 +192,11 @@ def setup_pipeline(args: argparse.Namespace, text_encoder=None) -> Text2ImagePip
         pipe = Text2ImagePipeline.from_config(
             config=config,
             dit_path=dit_path,
-            text_encoder_path=text_encoder_path,
+            use_text_encoder=text_encoder is None,
             device="cuda",
             torch_dtype=torch.bfloat16,
             load_ema_to_reg=args.load_ema,
+            distill_steps=args.distill_steps,
         )
 
         # Set the provided text encoder if one was passed
@@ -248,7 +268,7 @@ def generate_image(args: argparse.Namespace, pipe: Text2ImagePipeline) -> None:
     if args.batch_input_json is not None:
         # Process batch inputs from JSON file
         log.info(f"Loading batch inputs from JSON file: {args.batch_input_json}")
-        with open(args.batch_input_json, "r") as f:
+        with open(args.batch_input_json) as f:
             batch_inputs = json.load(f)
 
         for idx, item in enumerate(batch_inputs):
