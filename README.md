@@ -281,9 +281,17 @@ docker run --gpus all --runtime=nvidia -it --rm \
 -v ~/src/cosmos-predict2/datasets:/workspace/datasets \
 -v ~/src/cosmos-predict2/checkpoints:/workspace/checkpoints \
 cosmos-predict2-local
+# Or in my case
+docker run --gpus all --runtime=nvidia -it --rm \
+--shm-size=8g \
+-v ~/src/cosmos-predict2:/workspace \
+-v ~/src/cosmos-predict2/datasets:/workspace/datasets \
+-v /ssd0/tippolit/checkpoints/checkpoints:/workspace/checkpoints \
+cosmos-predict2-local
 
 # Verify Installation/Env
 python /workspace/scripts/test_environment.py
+python /workspace/test_cuda.py
 
 # Another tests
 nvidia-smi
@@ -335,6 +343,19 @@ EXP=predict2_video2world_training_1a_physgen && \
 nohup torchrun --nproc_per_node=4 --master_port=12341 \
     -m scripts.train --config=cosmos_predict2/configs/base/config.py -- experiment=\$EXP \
     > train.log 2>&1 & tail -f train.log"
+# or in my case
+docker run --gpus all --runtime=nvidia -d \
+--shm-size=8g \
+-v ~/src/cosmos-predict2:/workspace \
+-v ~/src/cosmos-predict2/datasets:/workspace/datasets \
+-v /ssd0/tippolit/checkpoints/checkpoints:/workspace/checkpoints \
+--name cosmos-train-run \
+cosmos-predict2-local \
+bash -c "cd /workspace && \
+EXP=predict2_video2world_training_1a_physgen && \
+nohup torchrun --nproc_per_node=4 --master_port=12341 \
+    -m scripts.train --config=cosmos_predict2/configs/base/config.py -- experiment=\$EXP \
+    > train.log 2>&1 & tail -f train.log"
 
 # See the logs after training
 docker logs -f cosmos-train-run
@@ -346,6 +367,22 @@ docker ps
 
 # Stop Container
 docker stop cosmos-train-run && docker rm /cosmos-train-run
+```
+
+Inference:
+```bash
+docker run --gpus all --runtime=nvidia -d \
+--shm-size=8g \
+-v ~/src/cosmos-predict2:/workspace \
+-v ~/src/cosmos-predict2/datasets:/workspace/datasets \
+-v /ssd0/tippolit/checkpoints/checkpoints:/workspace/checkpoints \
+--name cosmos-inference-run \
+cosmos-predict2-local \
+bash -c "cd /workspace && \
+EXP=predict2_video2world_training_1a_physgen && \
+nohup torchrun --nproc_per_node=4 --master_port=12341 \
+    -m inference --config=cosmos_predict2/configs/base/config.py -- experiment=\$EXP \
+    > inference.log 2>&1 & tail -f inference.log"
 ```
 
 <!--
@@ -381,6 +418,18 @@ docker run --gpus '"device=0,1,2,3"' --runtime=nvidia -it --shm-size=8g --rm --n
         - python3 -c "import torch; print(torch.cuda.device_count()); print(torch.cuda.get_device_name(0))"
 -->
 
+
+If you have problems with your tokenizer try this:
+```bash
+docker run --gpus all --runtime=nvidia -it --rm \
+--shm-size=8g \
+-v ~/src/cosmos-predict2:/workspace \
+-v ~/src/cosmos-predict2/datasets:/workspace/datasets \
+-v /ssd0/tippolit/checkpoints/checkpoints:/workspace/checkpoints \
+cosmos-predict2-local
+
+huggingface-cli download google-t5/t5-11b --local-dir checkpoints/google-t5/t5-11b --local-dir-use-symlinks False
+```
 
 
 <br><br><br><br>

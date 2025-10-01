@@ -52,7 +52,7 @@ def main(args) -> None:
 
     # print(f"Cache dir: {args.cache_dir}")
     # encoder = CosmosT5TextEncoder(cache_dir=args.cache_dir, local_files_only=True)
-    encoder_config = CosmosT5TextEncoderConfig(ckpt_path=args.cache_dir)
+    encoder_config = CosmosT5TextEncoderConfig(ckpt_path=args.cache_dir, local_files_only=True)
     encoder = CosmosT5TextEncoder(config=encoder_config)
 
     for meta_filename in metas_list:
