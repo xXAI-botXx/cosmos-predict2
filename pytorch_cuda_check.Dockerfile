@@ -8,10 +8,10 @@
 
 # Minimal PyTorch + CUDA Test Image
 # FROM nvcr.io/nvidia/pytorch:25.04-py3
-# FROM nvidia/cuda:12.1.1-devel-ubuntu22.04
+FROM nvidia/cuda:12.1.1-devel-ubuntu22.04
 # FROM nvidia/cuda:12.0.1-devel-ubuntu20.04
 # FROM nvidia/cuda:12.0.1-devel-ubuntu22.04
-FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
+# FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
 # FROM nvcr.io/nvidia/pytorch:23.09-py3 
 
 # Verhindert interaktive Prompts
@@ -27,12 +27,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN ls -l /usr/local/cuda*
 
 # PyTorch mit passender CUDA-Version installieren
-# RUN pip install torch==2.3.1+cu121 torchvision==0.18.1+cu121 torchaudio==2.3.1 \
-#     --index-url https://download.pytorch.org/whl/cu121
+RUN pip install torch==2.3.1+cu121 torchvision==0.18.1+cu121 torchaudio==2.3.1 \
+    --index-url https://download.pytorch.org/whl/cu121
 # RUN pip install torch==2.3.1+cu120 torchvision==0.18.1+cu120 torchaudio==2.3.1 \
 #     --index-url https://download.pytorch.org/whl/cu120
-RUN pip install torch==2.3.1+cu118 torchvision==0.18.1+cu118 torchaudio==2.3.1 \
-    --index-url https://download.pytorch.org/whl/cu118
+# RUN pip install torch==2.3.1+cu118 torchvision==0.18.1+cu118 torchaudio==2.3.1 \
+#     --index-url https://download.pytorch.org/whl/cu118
 
 # Testscript hinzufügen
 COPY test_cuda.py /workspace/test_cuda.py

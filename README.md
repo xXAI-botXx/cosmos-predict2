@@ -355,7 +355,7 @@ nohup torchrun --nproc_per_node=4 --master_port=12341 \
     -m scripts.train --config=cosmos_predict2/configs/base/config.py --experiment=\$EXP \
     > train.log 2>&1 & tail -f train.log"
 # or in my case
-docker run --gpus all --runtime=nvidia -d \
+docker run --gpus '"device=0"' --runtime=nvidia -d \
 --shm-size=8g \
 -v ~/src/cosmos-predict2:/workspace \
 -v ~/src/cosmos-predict2/datasets:/workspace/datasets \
@@ -364,8 +364,8 @@ docker run --gpus all --runtime=nvidia -d \
 cosmos-predict2-local \
 bash -c "cd /workspace && \
 EXP=predict2_video2world_training_1a_physgen && \
-nohup torchrun --nproc_per_node=4 --master_port=12341 \
-    -m scripts.train --config=cosmos_predict2/configs/base/config.py --experiment=\$EXP \
+nohup torchrun --nproc_per_node=1 --master_port=12341 \
+    -m scripts.train --config=cosmos_predict2/configs/base/config.py --experiment \$EXP \
     > train.log 2>&1 & tail -f train.log"
 
 # See the logs after training

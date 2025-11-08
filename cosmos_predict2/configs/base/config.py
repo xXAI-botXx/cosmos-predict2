@@ -41,15 +41,15 @@ class Config(config.Config):
             {"dataloader_train": None},
             {"dataloader_val": None},
             {"optimizer": "fusedadamw"},
-            {"scheduler": "constant"},
-            {"model": "predict2_multiview_fsdp_2b_720p_29frames_10fps"},
+            {"scheduler": "lambdalinear"},
+            {"model": "predict2_video2world_fsdp_2b"},  # "predict2_multiview_fsdp_2b_720p_29frames_10fps"},
             {"callbacks": ["basic"]},
             {"net": None},
             {"ema": None},
             {"checkpoint": None},
-            {"ckpt_type": None},
+            {"ckpt_type": "standard"},
             # the list is with order, we need global experiment to be the last one
-            {"experiment": None},
+            {"experiment": "predict2_video2world_training_1a_physgen"},
         ]
     )
 
