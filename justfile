@@ -9,6 +9,7 @@ setup:
 # Install the repository
 install:
   uv sync --extra cu126
+  # uv sync --extra cu121
 
 # Run linting and formatting
 lint: setup
@@ -17,12 +18,12 @@ lint: setup
 # Run tests
 test: lint
 
-# # Install inference in a new conda environment
-# install-conda: 
-#     just -f {{ justfile() }} _conda-env
-#     ./.venv/bin/python -m pip install torch torchvision --extra-index-url https://download.pytorch.org/whl/cu126
-#     ./.venv/bin/python -m pip install psutil
-#     just -f {{ justfile() }} install cu126
+# Install inference in a new conda environment
+install-conda: 
+    just -f {{ justfile() }} _conda-env
+    ./.venv/bin/python -m pip install torch torchvision --extra-index-url https://download.pytorch.org/whl/cu126
+    ./.venv/bin/python -m pip install psutil
+    just -f {{ justfile() }} install cu126
 
 # https://spdx.org/licenses/
 allow_licenses := "MIT BSD-2-CLAUSE BSD-3-CLAUSE APACHE-2.0 ISC"

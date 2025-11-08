@@ -7,5 +7,5 @@ if torch.cuda.is_available():
     print("CUDA Geräteanzahl:", torch.cuda.device_count())
     print("CUDA Gerät:", torch.cuda.get_device_name(0))
 else:
-    print("⚠️  Keine CUDA-Unterstützung erkannt!")
+    print("[ERROR] Keine CUDA-Unterstützung erkannt!")
 

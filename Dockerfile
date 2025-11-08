@@ -82,6 +82,7 @@
 
 ARG TARGETPLATFORM
 ARG BASE_IMAGE=nvidia/cuda:12.6.3-cudnn-devel-ubuntu24.04
+# ARG BASE_IMAGE=nvidia/cuda:12.1.1-cudnn8-devel-ubuntu20.04
 
 # # Install basic tools
 # RUN apt-get update && apt-get install -y git tree ffmpeg wget
@@ -128,6 +129,15 @@ RUN --mount=type=cache,target=/var/cache/apt \
         tree \
         wget
 
+# Install Build Tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    g++ \
+    cmake \
+    python3-dev \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install uv: https://docs.astral.sh/uv/getting-started/installation/
 # https://github.com/astral-sh/uv-docker-example/blob/main/Dockerfile
 COPY --from=ghcr.io/astral-sh/uv:0.8.12 /uv /uvx /usr/local/bin/
@@ -149,6 +159,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     --mount=type=bind,source=.python-version,target=.python-version \
     uv sync --locked --no-install-project --extra cu126
+# RUN --mount=type=cache,target=/root/.cache/uv \
+#     --mount=type=bind,source=uv.lock,target=uv.lock \
+#     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+#     --mount=type=bind,source=.python-version,target=.python-version \
+#     uv sync --locked --no-install-project --extra cu121
 
 # Place executables in the environment at the front of the path
 ENV PATH="/workspace/.venv/bin:$PATH"

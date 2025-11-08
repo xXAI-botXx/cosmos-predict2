@@ -236,6 +236,17 @@ This repo tries out the Cosmos-2 Model for the Phygen Dataset/Benchmark.
 -->
 
 
+5. Testing:
+    - Build Cuda Test Image
+        ```bash
+        docker build --no-cache -t cuda-check -f pytorch_cuda_check.Dockerfile .
+        ```
+    - Run Cuda Test Image/Container
+        ```bash
+        docker run --runtime=nvidia --rm --gpus all cuda-check
+        ```
+
+
 ### Running
 
 <!--
@@ -307,10 +318,10 @@ python physgen_data_test.py
 
 # Start Training -> adjust the nproc_per_node with the used gpus 
 EXP=predict2_video2world_training_1a_physgen && \
-torchrun --nproc_per_node=1 --master_port=12341 -m scripts.train --config=cosmos_predict2/configs/base/config.py -- experiment=${EXP}
+torchrun --nproc_per_node=1 --master_port=12341 -m scripts.train --config=cosmos_predict2/configs/base/config.py --experiment=${EXP}
 # or
 EXP=predict2_video2world_training_1a_physgen && \
-torchrun --nproc_per_node=4 --master_port=12341 -m scripts.train --config=cosmos_predict2/configs/base/config.py -- experiment=${EXP}
+torchrun --nproc_per_node=4 --master_port=12341 -m scripts.train --config=cosmos_predict2/configs/base/config.py --experiment=${EXP}
 
 exit
 ```
@@ -328,7 +339,7 @@ cosmos-predict2-local \
 bash -c "cd /workspace && \
 EXP=predict2_video2world_training_1a_physgen && \
 nohup torchrun --nproc_per_node=1 --master_port=12341 \
-    -m scripts.train --config=cosmos_predict2/configs/base/config.py -- experiment=\$EXP \
+    -m scripts.train --config=cosmos_predict2/configs/base/config.py --experiment=\$EXP \
     > train.log 2>&1 & tail -f train.log"
 # or
 docker run --gpus all --runtime=nvidia -d \
@@ -341,7 +352,7 @@ cosmos-predict2-local \
 bash -c "cd /workspace && \
 EXP=predict2_video2world_training_1a_physgen && \
 nohup torchrun --nproc_per_node=4 --master_port=12341 \
-    -m scripts.train --config=cosmos_predict2/configs/base/config.py -- experiment=\$EXP \
+    -m scripts.train --config=cosmos_predict2/configs/base/config.py --experiment=\$EXP \
     > train.log 2>&1 & tail -f train.log"
 # or in my case
 docker run --gpus all --runtime=nvidia -d \
@@ -354,7 +365,7 @@ cosmos-predict2-local \
 bash -c "cd /workspace && \
 EXP=predict2_video2world_training_1a_physgen && \
 nohup torchrun --nproc_per_node=4 --master_port=12341 \
-    -m scripts.train --config=cosmos_predict2/configs/base/config.py -- experiment=\$EXP \
+    -m scripts.train --config=cosmos_predict2/configs/base/config.py --experiment=\$EXP \
     > train.log 2>&1 & tail -f train.log"
 
 # See the logs after training
@@ -369,9 +380,53 @@ docker ps
 docker stop cosmos-train-run && docker rm /cosmos-train-run
 ```
 
+Test:
+```bash
+docker run --gpus all --runtime=nvidia \
+-it \
+--rm \
+--shm-size=8g \
+-v ~/src/cosmos-predict2:/workspace \
+-v ~/src/cosmos-predict2/datasets:/workspace/datasets \
+-v /ssd0/tippolit/checkpoints/checkpoints:/workspace/checkpoints \
+--name cosmos-inference-run \
+cosmos-predict2-local \
+bash -c "cd /workspace && nvidia-smi && python -i"
+
+docker run --gpus '"device=0"' --runtime=nvidia \
+-it \
+--rm \
+--shm-size=8g \
+-v ~/src/cosmos-predict2:/workspace \
+-v ~/src/cosmos-predict2/datasets:/workspace/datasets \
+-v /ssd0/tippolit/checkpoints/checkpoints:/workspace/checkpoints \
+--name cosmos-inference-run \
+cosmos-predict2-local \
+bash -c "cd /workspace && nvidia-smi && python -i"
+
+*not working:
+Then run:
+    - import torch; print(torch.cuda.is_available())
+    - print(torch.cuda.get_device_name(0))
+    - exit()
+```
+
+```bash
+docker run --gpus '"device=0"' --runtime=nvidia -it --rm \
+  -v ~/src/cosmos-predict2:/workspace \
+  -v ~/src/cosmos-predict2/datasets:/workspace/datasets \
+  -v /ssd0/tippolit/checkpoints/checkpoints:/workspace/checkpoints \
+  cosmos-predict2-local
+
+then:
+env | grep CUDA
+ls /dev/nvidia*
+nvidia-smi
+```
+
 Inference:
 ```bash
-docker run --gpus all --runtime=nvidia -d \
+docker run --gpus '"device=0"' --runtime=nvidia -d \
 --shm-size=8g \
 -v ~/src/cosmos-predict2:/workspace \
 -v ~/src/cosmos-predict2/datasets:/workspace/datasets \
@@ -380,9 +435,20 @@ docker run --gpus all --runtime=nvidia -d \
 cosmos-predict2-local \
 bash -c "cd /workspace && \
 EXP=predict2_video2world_training_1a_physgen && \
-nohup torchrun --nproc_per_node=4 --master_port=12341 \
-    -m inference --config=cosmos_predict2/configs/base/config.py -- experiment=\$EXP \
+nohup torchrun --nproc_per_node=1 --master_port=12341 \
+    -m inference --config=cosmos_predict2/configs/base/config.py --experiment=\$EXP \
     > inference.log 2>&1 & tail -f inference.log"
+
+# See the logs after training
+docker logs -f cosmos-inference-run
+#      or
+cat ~/src/cosmos-predict2/inference.log
+
+# Check if it is still alive
+docker ps
+
+# Stop Container
+docker stop cosmos-inference-run && docker rm /cosmos-inference-run
 ```
 
 <!--
