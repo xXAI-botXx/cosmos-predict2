@@ -511,6 +511,17 @@ huggingface-cli download google-t5/t5-11b --local-dir checkpoints/google-t5/t5-1
     <img src="assets/nvidia-cosmos-header.png" alt="NVIDIA Cosmos Header">
 </p>
 
+<h1 align="center">
+
+> 🚨 **Update Notice**  
+>
+> The latest version of our Cosmos-Predict is now live!
+>
+> 👉 [**Cosmos-Predict2.5**](https://github.com/nvidia-cosmos/cosmos-predict2.5)
+
+We recommend all users migrate to the new version for improved performance, features, and continued support.
+</h1>
+
 ### Paper (coming soon!) | [Website](https://research.nvidia.com/labs/dir/cosmos-predict2/) | [Hugging Face](https://huggingface.co/collections/nvidia/cosmos-predict2-68028efc052239369a0f2959) | [PyPI](https://pypi.org/project/cosmos-predict2/)
 
 Cosmos-Predict2 is a key branch of the [Cosmos World Foundation Models](https://www.nvidia.com/en-us/ai/cosmos) (WFMs) ecosystem for Physical AI, specializing in future state prediction through advanced world modeling. It offers two powerful capabilities: text-to-image generation for creating high-quality images from text descriptions, and video-to-world generation for producing visual simulations from video inputs.
