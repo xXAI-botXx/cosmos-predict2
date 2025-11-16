@@ -2,7 +2,7 @@
 from cosmos_predict2.data.dataset_video import Dataset
 
 dataset = Dataset(
-    dataset_dir="datasets/physgen_train",
+    dataset_dir="/workspace/datasets/physgen_train",
     num_frames=93,
     video_size=[256, 256],
 )
