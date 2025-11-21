@@ -215,14 +215,15 @@ This repo tries out the Cosmos-2 Model for the Phygen Dataset/Benchmark.
     2. Run `pip install huggingface_hub[cli]`
     3. Go to https://huggingface.co/nvidia/Cosmos-Predict2-2B-Video2World and accept their terms (you have to click on "Expand to review access" in the "You need to agree to share your contact information to access this model" area) -> also here: https://huggingface.co/meta-llama/Llama-Guard-3-8B & https://huggingface.co/nvidia/Cosmos-Guardrail1
     4. Then go back to your bash/console and login with: `hf auth login` (use `hf auth --help`) -> as password use the generated token (`Add token as git credential? (Y/n)` => n)
-    5. Start the downloading process of the prediction model: run `export HF_HOME="/ssd0/tippolit/hf_cache" && /home/tippolit/src/cosmos-predict2/scripts/download_checkpoints.py --model_types video2world --model_sizes 2B`  -> default uses: `~/.cache/huggingface/`
-    6. (After a while) Copy the model to your checkpoints -> use the last line in the download_model.txt
+    5. Start the downloading process of the prediction model: run `export CUR_LOCATION=$(pwd) && mkdir /ssd0/tippolit/cosmos-predict2 && cd /ssd0/tippolit/cosmos-predict2 && export HF_HOME="/ssd0/tippolit/hf_cache" && /home/tippolit/src/cosmos-predict2/scripts/download_checkpoints.py --model_types video2world --model_sizes 2B && cd "$CUR_LOCATION"`  -> default uses: `~/.cache/huggingface/` & if folder is existing: `rm -r /ssd0/tippolit/cosmos-predict2/`
+    6. Check: `ls /ssd0/tippolit/cosmos-predict2/checkpoints`
+<!--
+    6. (Optional) Copy the model to your checkpoints -> use the last line in the download_model.txt
         ```bash
         mkdir /home/tippolit/src/cosmos-predict2/checkpoints/nvidia && cp -rL /home/tippolit/.cache/huggingface/hub/models--nvidia--Cosmos-Predict2-2B-Video2World/snapshots/f50c09f5d8ab133a90cac3f4886a6471e9ba3f18 \
         /home/tippolit/src/cosmos-predict2/checkpoints/nvidia/Cosmos-Predict2-2B-Video2World && \
         chmod -R a+rwx /home/tippolit/src/cosmos-predict2/checkpoints/nvidia/Cosmos-Predict2-2B-Video2World
         ```
-<!--
 4. Donwload Tokenizer (https://huggingface.co/google-t5/t5-11b)
     1. Make Huggingface Account + create a Access Token (somewhere in the settings)
     2. Then go back to your bash/console and login with: huggingface-cli login -> as password use the generated token (`Add token as git credential? (Y/n)` => n)
@@ -250,52 +251,53 @@ This repo tries out the Cosmos-2 Model for the Phygen Dataset/Benchmark.
 docker run --rm nvcr.io/nvidia/pytorch:25.04-py3 nvcc --version
 -->
 
-```
-# Get Device Number
-nvidia-smi -L
+Old versions need: `--runtime=nvidia`
 
-# Find the right (previously installed) image
-docker image ls
+Get Device Numbers: `nvidia-smi -L`
 
-# Check versions (multiline commands)
+Find the right (previously installed) image: `docker image ls`
+
+Check versions (multiline commands):
+```bash
 echo -e "\n> CUDA TEST start <\n\n---------\nHOST GPU Versions\n---------\n" && \
 echo "NVIDIA Driver Version: $(nvidia-smi --query-gpu=driver_version --format=csv,noheader)" && echo "CUDA Version: $(nvcc --version | grep release | awk '{print $6}' | sed 's/,//')" && \
 echo -e "\n---------\nDOCKER GPU Versions\n---------\n" && \
 docker run --gpus all --runtime=nvidia --rm \
 --shm-size=8g \
 -v ~/src/cosmos-predict2:/workspace \
--v ~/src/cosmos-predict2/datasets:/workspace/datasets \
--v ~/src/cosmos-predict2/checkpoints:/workspace/checkpoints \
 cosmos-predict2-local \
 /bin/bash -c 'echo "CUDA Version:" $(nvcc --version | grep release | awk "{print \$6}" | sed "s/,//")' && \
 echo -e "\n> CUDA TEST end <\n" 
+```
 
+Testing:<br>
+`docker run --rm --gpus all nvidia/cuda:12.2.0-base-ubuntu20.04 nvidia-smi`
 
-# Testing
-docker run --rm --gpus all nvidia/cuda:12.2.0-base-ubuntu20.04 nvidia-smi
-docker run --rm --gpus all --runtime=nvidia nvidia/cuda:12.2.0-base-ubuntu20.04 nvidia-smi
-
-# Start docker
-docker run --gpus '"device=0,1"' --runtime=nvidia -it --rm \
---shm-size=8g \
--v ~/src/cosmos-predict2:/workspace \
--v ~/src/cosmos-predict2/datasets:/workspace/datasets \
--v ~/src/cosmos-predict2/checkpoints:/workspace/checkpoints \
-cosmos-predict2-local
-# Or
-docker run --gpus all --runtime=nvidia -it --rm \
---shm-size=8g \
--v ~/src/cosmos-predict2:/workspace \
--v ~/src/cosmos-predict2/datasets:/workspace/datasets \
--v ~/src/cosmos-predict2/checkpoints:/workspace/checkpoints \
-cosmos-predict2-local
-# Or in my case
-docker run --gpus all --runtime=nvidia -it --rm \
+Then continue testing:
+```
+# Start docker (testwise)
+docker run --gpus '"device=0,1"' -it --rm \
 --shm-size=8g \
 -v ~/src/cosmos-predict2:/workspace \
 -v ~/src/cosmos-predict2/datasets:/workspace/datasets \
 -v /ssd0/tippolit/cosmos-predict2/checkpoints:/workspace/checkpoints \
 cosmos-predict2-local
+# Or
+docker run --gpus all -it --rm \
+--shm-size=8g \
+-v ~/src/cosmos-predict2:/workspace \
+-v ~/src/cosmos-predict2/datasets:/workspace/datasets \
+-v /ssd0/tippolit/cosmos-predict2/checkpoints:/workspace/checkpoints \
+cosmos-predict2-local
+# Or in my case
+docker run --gpus all -it --rm \
+--shm-size=8g \
+-v ~/src/cosmos-predict2:/workspace \
+-v ~/src/cosmos-predict2/datasets:/workspace/datasets \
+-v /ssd0/tippolit/cosmos-predict2/checkpoints:/workspace/checkpoints \
+cosmos-predict2-local
+
+# in bash in docker run following commands:
 
 # Verify Installation/Env
 python /workspace/scripts/test_environment.py
@@ -305,6 +307,11 @@ python /workspace/test_cuda.py
 nvidia-smi
 python3 -c "import torch; print(torch.cuda.device_count()); print(torch.cuda.get_device_name(0))"
 
+exit
+```
+
+Create embeddings of your data (start again a docker as for the testing):
+```bash
 # Create Embeddings (you have to already downloaded and converted the physgen dataset as described on top)
 python -m scripts.get_t5_embeddings --dataset_path datasets/physgen_train
 python -m scripts.get_t5_embeddings --dataset_path datasets/physgen_val
@@ -318,20 +325,14 @@ docker run --gpus '"device=0"' -it --rm \
 -v /ssd0/tippolit/cosmos-predict2/checkpoints:/workspace/checkpoints \
 cosmos-predict2-local bash -c "python physgen_data_test.py"
 
-# Start Training -> adjust the nproc_per_node with the used gpus 
-EXP=predict2_video2world_training_1a_physgen && \
-torchrun --nproc_per_node=1 --master_port=12341 -m scripts.train --config=cosmos_predict2/configs/base/config.py -- experiment=${EXP}
-# or
-EXP=predict2_video2world_training_1a_physgen && \
-torchrun --nproc_per_node=4 --master_port=12341 -m scripts.train --config=cosmos_predict2/configs/base/config.py -- experiment=${EXP}
-
 exit
 ```
 
-Or if you want to start in background:
+
+Start your training:
 ```bash
 # Start training in background
-docker run --gpus '"device=0"' -d \
+docker run --gpus '"device=2,3"' -d \
 --shm-size=8g \
 -v ~/src/cosmos-predict2:/workspace \
 -v ~/src/cosmos-predict2/datasets:/workspace/datasets \
@@ -340,7 +341,7 @@ docker run --gpus '"device=0"' -d \
 cosmos-predict2-local \
 bash -c "cd /workspace && \
 EXP=predict2_video2world_training_1a_physgen && \
-nohup torchrun --nproc_per_node=1 --master_port=12341 \
+nohup torchrun --nproc_per_node=2 --master_port=12341 \
     -m scripts.train --config=cosmos_predict2/configs/base/config.py -- experiment=\$EXP \
     > train.log 2>&1 & tail -f train.log"
 
@@ -356,7 +357,7 @@ docker ps
 docker stop cosmos-train-run && docker rm /cosmos-train-run
 ```
 
-Test:
+Test inference:
 ```bash
 docker run --gpus all --runtime=nvidia \
 -it \
