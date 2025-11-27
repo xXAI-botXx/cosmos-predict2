@@ -332,7 +332,9 @@ exit
 Start your training:
 ```bash
 # Start training in background
-docker run --gpus '"device=2,3"' -d \
+# --gpus '"device=2,3"' or --gpus all
+# -> also adjust the amount of GPUs then: --nproc_per_node=2
+docker run --gpus '"device=1,2,3"' -d \
 --shm-size=8g \
 -v ~/src/cosmos-predict2:/workspace \
 -v ~/src/cosmos-predict2/datasets:/workspace/datasets \
@@ -341,7 +343,7 @@ docker run --gpus '"device=2,3"' -d \
 cosmos-predict2-local \
 bash -c "cd /workspace && \
 EXP=predict2_video2world_training_1a_physgen && \
-nohup torchrun --nproc_per_node=2 --master_port=12341 \
+nohup torchrun --nproc_per_node=3 --master_port=12341 \
     -m scripts.train --config=cosmos_predict2/configs/base/config.py -- experiment=\$EXP \
     > train.log 2>&1 & tail -f train.log"
 
@@ -401,10 +403,9 @@ ls /dev/nvidia*
 nvidia-smi
 ```
 
-Inference:
-<!-- runtime=nvidia -->
+Test mounting:
 ```bash
-docker run --gpus '"device=0"' -d --rm \
+docker run --gpus all -d --rm \
 --shm-size=8g \
 -v ~/src/cosmos-predict2:/workspace \
 -v ~/src/cosmos-predict2/datasets:/workspace/datasets \
@@ -417,8 +418,19 @@ echo '--- 1. Listing /workspace ---' && ls -l /workspace ; \
 echo -e '\n--- 2. Listing /checkpoints ---\n' && ls -l /checkpoints ; \
 ) > docker_info.log 2>&1
 "
+```
 
-docker run --gpus '"device=0"' -d \
+**Inference:**
+<!-- runtime=nvidia 
+
+EXP=predict2_video2world_training_1a_physgen && \
+nohup torchrun --nproc_per_node=4 --master_port=12341 \
+    -m inference --config=cosmos_predict2/configs/base/config.py --experiment=\$EXP \
+    > inference.log 2>&1 & tail -f inference.log
+-->
+
+```bash
+docker run --gpus all -d \
 --shm-size=8g \
 -v ~/src/cosmos-predict2:/workspace \
 -v ~/src/cosmos-predict2/datasets:/workspace/datasets \
@@ -426,10 +438,12 @@ docker run --gpus '"device=0"' -d \
 --name cosmos-inference-run \
 cosmos-predict2-local \
 bash -c "cd /workspace && \
-EXP=predict2_video2world_training_1a_physgen && \
-nohup torchrun --nproc_per_node=1 --master_port=12341 \
-    -m inference --config=cosmos_predict2/configs/base/config.py --experiment=\$EXP \
-    > inference.log 2>&1 & tail -f inference.log"
+python examples/video2world.py \
+  --model_size 2B \
+  --dit_path "/workspace/checkpoints/posttraining/video2world/FOXEM_PATH_TO_pt" \
+  --prompt "Make a sound_reflection propagation with the sound source in the center of the image in one step." \
+  --input_path "/workspace/datasets/physgen_test_raw/osm/input_physgen_0.png" \
+  --save_path output/cache_physgen/prediction/generated_video_from_post-training.mp4"
 
 # See the logs after training
 docker logs -f cosmos-inference-run
@@ -442,6 +456,8 @@ docker ps
 # Stop Container
 docker stop cosmos-inference-run && docker rm /cosmos-inference-run
 ```
+
+For whole evaluation see: [evaluation.ipynb](./evaluation.ipynb)
 
 <!--
 Putting the checkpoints to another disk:

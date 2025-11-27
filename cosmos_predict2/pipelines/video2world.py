@@ -558,15 +558,15 @@ class Video2WorldPipeline(BasePipeline):
 
                 expected_length = self.tokenizer.get_pixel_num_frames(self.config.state_t)
                 original_length = data_batch[input_key].shape[2]
-                print(f"original_length: {original_length}, expected_length: {expected_length}")
+                # print(f"original_length: {original_length}, expected_length: {expected_length}")
                 if original_length < expected_length:
                     data_batch[input_key] = pad_video_to_length(video=data_batch[input_key], target_length=expected_length)
-                    print("[INFO] Frame-Amount got extended.")
+                    # print("[INFO] Frame-Amount got extended.")
                 elif original_length > expected_length:
                     data_batch[input_key] = temporal_sample(data_batch[input_key], expected_length)
-                    print("[INFO] Frame-Amount got reduced.")
-                else:
-                    print("[INFO] No changes to the data frames are made.")
+                    # print("[INFO] Frame-Amount got reduced.")
+                # else:
+                #     # print("[INFO] No changes to the data frames are made.")
 
     def _augment_image_dim_inplace(self, data_batch: dict[str, torch.Tensor], input_key: str = None) -> None:  # noqa: RUF013
         input_key = self.input_image_key if input_key is None else input_key
