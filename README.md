@@ -2,6 +2,299 @@
 
 This repo tries out the Cosmos-2 Model for the Phygen Dataset/Benchmark.
 
+### Current State
+
+PhysGen Dataset successfull transformation into the right form for Cosmos-Predict 2.
+
+Guide (below) which helps for building your system and python environment as well as build the dataset and start training and inferencing.
+
+Training should work now, maybe there occur errors after one epoch which have to get fixed which is not a big problem and maybe all of those error are already fixed (many of these errors got fixed, but maybe there still errors after one epoch). 
+
+The training is started with:
+```bash
+docker run --gpus '"device=1,2,3"' -d \
+--shm-size=8g \
+-v ~/src/cosmos-predict2:/workspace \
+-v ~/src/cosmos-predict2/datasets:/workspace/datasets \
+-v /ssd0/tippolit/cosmos-predict2/checkpoints:/workspace/checkpoints \
+--name cosmos-train-run \
+cosmos-predict2-local \
+bash -c "cd /workspace && \
+EXP=predict2_video2world_training_1a_physgen && \
+nohup torchrun --nproc_per_node=3 --master_port=12341 \
+    -m scripts.train --config=cosmos_predict2/configs/base/config.py -- experiment=\$EXP \
+    > train.log 2>&1 & tail -f train.log"
+```
+
+Currently inference is not possible due to not enough memory (but training did actually work which makes no sense at all). There is a evaluation notebook but it is not completly finished, which is marked as `FIXME` in the [evaluation.ipynb](evaluation.ipynb).
+
+Inference command:
+```bash
+docker run --rm \
+--shm-size=8g \
+--gpus all \
+-v ~/src/cosmos-predict2:/workspace \
+-v ~/src/cosmos-predict2/datasets:/workspace/datasets \
+-v /ssd0/tippolit/cosmos-predict2/checkpoints:/workspace/checkpoints \
+--name cosmos-inference-run \
+cosmos-predict2-local \
+bash -c "cd /workspace && \
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True && \
+torchrun --nproc_per_node=4 --master_port=12341\
+ -m examples.video2world \
+  --model_size 2B \
+  --dit_path "/workspace/checkpoints/posttraining/video2world/1a_physgen/checkpoints/model/iter_000020000.pt" \
+  --prompt "Make a sound_reflection propagation with the sound source in the center of the image in one step." \
+  --input_path "/workspace/datasets/physgen_test_raw/osm/input_physgen_0.png" \
+  --save_path /workspace/output/cache_physgen/prediction/generated_video_from_post-training.mp4 \
+  --disable_guardrail \
+  --disable_prompt_refiner \
+  --resolution 256 \
+  --fps 1 \
+  --aspect_ratio "1:1" \
+  --num_conditional_frames 1 \
+  --num_gpus 4"
+```
+
+Output:
+```bash
+(base) tippolit@lecun01:~/src/cosmos-predict2$ docker run --rm \
+--shm-size=8g \
+--gpus all \
+-v ~/src/cosmos-predict2:/workspace \
+-v ~/src/cosmos-predict2/datasets:/workspace/datasets \
+-v /ssd0/tippolit/cosmos-predict2/checkpoints:/workspace/checkpoints \
+--name cosmos-inference-run \
+cosmos-predict2-local \
+bash -c "cd /workspace && \
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True && \
+torchrun --nproc_per_node=4 --master_port=12341\
+  --num_gpus 4"onal_frames 1 \t/cache_physgen/prediction/generated_video_from_post-training.mp4 \in one step." \
+Resolved 162 packages in 2ms
+Bytecode compiled 19462 files in 812ms
+W1130 13:18:39.406000 1 torch/distributed/run.py:792] 
+W1130 13:18:39.406000 1 torch/distributed/run.py:792] *****************************************
+W1130 13:18:39.406000 1 torch/distributed/run.py:792] Setting OMP_NUM_THREADS environment variable for each process to be 1 in default, to avoid your system being overloaded, please further tune the variable for optimal performance in your application as needed. 
+W1130 13:18:39.406000 1 torch/distributed/run.py:792] *****************************************
+fatal: detected dubious ownership in repository at '/workspace'
+To add an exception for this directory, call:
+
+        git config --global --add safe.directory /workspace
+[11-30 13:18:47|INFO|imaginaire/constants.py:39:print_environment_info] imaginaire.constants: Namespace(checkpoints='checkpoints', text_encoder=<TextEncoderClass.T5: 't5'>)
+[11-30 13:18:47|INFO|imaginaire/constants.py:40:print_environment_info] sys.argv: ['/workspace/examples/video2world.py', '--model_size', '2B', '--dit_path', '/workspace/checkpoints/posttraining/video2world/1a_physgen/checkpoints/model/iter_000020000.pt', '--prompt', 'Make']
+[11-30 13:18:47|INFO|imaginaire/constants.py:41:print_environment_info] args: Namespace(model_size='2B', resolution='720', fps=16, dit_path='/workspace/checkpoints/posttraining/video2world/1a_physgen/checkpoints/model/iter_000020000.pt', load_ema=False, prompt='Make', input_path='assets/video2world/input0.jpg', negative_prompt='The video captures a series of frames showing ugly scenes, static with no motion, motion blur, over-saturation, shaky footage, low resolution, grainy texture, pixelated images, poorly lit areas, underexposed and overexposed scenes, poor color balance, washed out colors, choppy sequences, jerky movements, low frame rate, artifacting, color banding, unnatural transitions, outdated special effects, fake elements, unconvincing visuals, poorly edited content, jump cuts, visual noise, and flickering. Overall, the video is of poor quality.', aspect_ratio='16:9', num_conditional_frames=1, batch_input_json=None, guidance=7, seed=0, save_path='output/generated_video.mp4', num_gpus=1, disable_guardrail=False, offload_guardrail=False, disable_prompt_refiner=False, offload_prompt_refiner=False, offload_text_encoder=False, downcast_text_encoder=False, benchmark=False, use_cuda_graphs=False, natten=False)
+[11-30 13:18:47|INFO|examples/video2world.py:210:setup_pipeline] Using dit_path: /workspace/checkpoints/posttraining/video2world/1a_physgen/checkpoints/model/iter_000020000.pt
+[11-30 13:18:47|INFO|imaginaire/utils/misc.py:139:set_random_seed] Using random seed 0.
+[11-30 13:18:47|WARNING|imaginaire/lazy_config/lazy.py:441:save_yaml] Config is saved using omegaconf at output/generated_video.yaml.
+[11-30 13:18:47|INFO|examples/video2world.py:259:setup_pipeline] Initializing Video2WorldPipeline with model size: 2B
+[11-30 13:18:47|WARNING|cosmos_predict2/pipelines/video2world.py:320:from_config] precision torch.bfloat16
+fatal: detected dubious ownership in repository at '/workspace'
+To add an exception for this directory, call:
+
+        git config --global --add safe.directory /workspace
+[11-30 13:18:47|INFO|imaginaire/constants.py:39:print_environment_info] imaginaire.constants: Namespace(checkpoints='checkpoints', text_encoder=<TextEncoderClass.T5: 't5'>)
+[11-30 13:18:47|INFO|imaginaire/constants.py:40:print_environment_info] sys.argv: ['/workspace/examples/video2world.py', '--model_size', '2B', '--dit_path', '/workspace/checkpoints/posttraining/video2world/1a_physgen/checkpoints/model/iter_000020000.pt', '--prompt', 'Make']
+[11-30 13:18:47|INFO|imaginaire/constants.py:41:print_environment_info] args: Namespace(model_size='2B', resolution='720', fps=16, dit_path='/workspace/checkpoints/posttraining/video2world/1a_physgen/checkpoints/model/iter_000020000.pt', load_ema=False, prompt='Make', input_path='assets/video2world/input0.jpg', negative_prompt='The video captures a series of frames showing ugly scenes, static with no motion, motion blur, over-saturation, shaky footage, low resolution, grainy texture, pixelated images, poorly lit areas, underexposed and overexposed scenes, poor color balance, washed out colors, choppy sequences, jerky movements, low frame rate, artifacting, color banding, unnatural transitions, outdated special effects, fake elements, unconvincing visuals, poorly edited content, jump cuts, visual noise, and flickering. Overall, the video is of poor quality.', aspect_ratio='16:9', num_conditional_frames=1, batch_input_json=None, guidance=7, seed=0, save_path='output/generated_video.mp4', num_gpus=1, disable_guardrail=False, offload_guardrail=False, disable_prompt_refiner=False, offload_prompt_refiner=False, offload_text_encoder=False, downcast_text_encoder=False, benchmark=False, use_cuda_graphs=False, natten=False)
+[11-30 13:18:47|INFO|examples/video2world.py:210:setup_pipeline] Using dit_path: /workspace/checkpoints/posttraining/video2world/1a_physgen/checkpoints/model/iter_000020000.pt
+[11-30 13:18:47|INFO|imaginaire/utils/misc.py:139:set_random_seed] Using random seed 0.
+[11-30 13:18:47|WARNING|imaginaire/lazy_config/lazy.py:441:save_yaml] Config is saved using omegaconf at output/generated_video.yaml.
+[11-30 13:18:47|INFO|examples/video2world.py:259:setup_pipeline] Initializing Video2WorldPipeline with model size: 2B
+[11-30 13:18:47|WARNING|cosmos_predict2/pipelines/video2world.py:320:from_config] precision torch.bfloat16
+fatal: detected dubious ownership in repository at '/workspace'
+To add an exception for this directory, call:
+
+        git config --global --add safe.directory /workspace
+[11-30 13:18:47|INFO|imaginaire/constants.py:39:print_environment_info] imaginaire.constants: Namespace(checkpoints='checkpoints', text_encoder=<TextEncoderClass.T5: 't5'>)
+[11-30 13:18:47|INFO|imaginaire/constants.py:40:print_environment_info] sys.argv: ['/workspace/examples/video2world.py', '--model_size', '2B', '--dit_path', '/workspace/checkpoints/posttraining/video2world/1a_physgen/checkpoints/model/iter_000020000.pt', '--prompt', 'Make']
+[11-30 13:18:47|INFO|imaginaire/constants.py:41:print_environment_info] args: Namespace(model_size='2B', resolution='720', fps=16, dit_path='/workspace/checkpoints/posttraining/video2world/1a_physgen/checkpoints/model/iter_000020000.pt', load_ema=False, prompt='Make', input_path='assets/video2world/input0.jpg', negative_prompt='The video captures a series of frames showing ugly scenes, static with no motion, motion blur, over-saturation, shaky footage, low resolution, grainy texture, pixelated images, poorly lit areas, underexposed and overexposed scenes, poor color balance, washed out colors, choppy sequences, jerky movements, low frame rate, artifacting, color banding, unnatural transitions, outdated special effects, fake elements, unconvincing visuals, poorly edited content, jump cuts, visual noise, and flickering. Overall, the video is of poor quality.', aspect_ratio='16:9', num_conditional_frames=1, batch_input_json=None, guidance=7, seed=0, save_path='output/generated_video.mp4', num_gpus=1, disable_guardrail=False, offload_guardrail=False, disable_prompt_refiner=False, offload_prompt_refiner=False, offload_text_encoder=False, downcast_text_encoder=False, benchmark=False, use_cuda_graphs=False, natten=False)
+[11-30 13:18:47|INFO|examples/video2world.py:210:setup_pipeline] Using dit_path: /workspace/checkpoints/posttraining/video2world/1a_physgen/checkpoints/model/iter_000020000.pt
+[11-30 13:18:47|INFO|imaginaire/utils/misc.py:139:set_random_seed] Using random seed 0.
+fatal: detected dubious ownership in repository at '/workspace'
+To add an exception for this directory, call:
+
+        git config --global --add safe.directory /workspace
+[11-30 13:18:47|INFO|imaginaire/constants.py:39:print_environment_info] imaginaire.constants: Namespace(checkpoints='checkpoints', text_encoder=<TextEncoderClass.T5: 't5'>)
+[11-30 13:18:47|INFO|imaginaire/constants.py:40:print_environment_info] sys.argv: ['/workspace/examples/video2world.py', '--model_size', '2B', '--dit_path', '/workspace/checkpoints/posttraining/video2world/1a_physgen/checkpoints/model/iter_000020000.pt', '--prompt', 'Make']
+[11-30 13:18:47|INFO|imaginaire/constants.py:41:print_environment_info] args: Namespace(model_size='2B', resolution='720', fps=16, dit_path='/workspace/checkpoints/posttraining/video2world/1a_physgen/checkpoints/model/iter_000020000.pt', load_ema=False, prompt='Make', input_path='assets/video2world/input0.jpg', negative_prompt='The video captures a series of frames showing ugly scenes, static with no motion, motion blur, over-saturation, shaky footage, low resolution, grainy texture, pixelated images, poorly lit areas, underexposed and overexposed scenes, poor color balance, washed out colors, choppy sequences, jerky movements, low frame rate, artifacting, color banding, unnatural transitions, outdated special effects, fake elements, unconvincing visuals, poorly edited content, jump cuts, visual noise, and flickering. Overall, the video is of poor quality.', aspect_ratio='16:9', num_conditional_frames=1, batch_input_json=None, guidance=7, seed=0, save_path='output/generated_video.mp4', num_gpus=1, disable_guardrail=False, offload_guardrail=False, disable_prompt_refiner=False, offload_prompt_refiner=False, offload_text_encoder=False, downcast_text_encoder=False, benchmark=False, use_cuda_graphs=False, natten=False)
+[11-30 13:18:47|INFO|examples/video2world.py:210:setup_pipeline] Using dit_path: /workspace/checkpoints/posttraining/video2world/1a_physgen/checkpoints/model/iter_000020000.pt
+[11-30 13:18:47|INFO|imaginaire/utils/misc.py:139:set_random_seed] Using random seed 0.
+[11-30 13:18:47|WARNING|imaginaire/lazy_config/lazy.py:441:save_yaml] Config is saved using omegaconf at output/generated_video.yaml.
+[11-30 13:18:47|INFO|examples/video2world.py:259:setup_pipeline] Initializing Video2WorldPipeline with model size: 2B
+[11-30 13:18:47|WARNING|cosmos_predict2/pipelines/video2world.py:320:from_config] precision torch.bfloat16
+[11-30 13:18:47|WARNING|imaginaire/lazy_config/lazy.py:441:save_yaml] Config is saved using omegaconf at output/generated_video.yaml.
+[11-30 13:18:47|INFO|examples/video2world.py:259:setup_pipeline] Initializing Video2WorldPipeline with model size: 2B
+[11-30 13:18:47|WARNING|cosmos_predict2/pipelines/video2world.py:320:from_config] precision torch.bfloat16
+[DEBUG] Temporal Window: 16
+[DEBUG] Temporal Window: 16
+[DEBUG] Temporal Window: 16
+[DEBUG] Temporal Window: 16
+[11-30 13:18:49|INFO|cosmos_predict2/tokenizers/tokenizer.py:602:_video_vae] Loading checkpoints/nvidia/Cosmos-Predict2-2B-Video2World/tokenizer/tokenizer.pth
+[11-30 13:18:49|SUCCESS|cosmos_predict2/tokenizers/tokenizer.py:604:_video_vae] Successfully loaded checkpoints/nvidia/Cosmos-Predict2-2B-Video2World/tokenizer/tokenizer.pth
+[11-30 13:18:49|INFO|cosmos_predict2/tokenizers/tokenizer.py:602:_video_vae] Loading checkpoints/nvidia/Cosmos-Predict2-2B-Video2World/tokenizer/tokenizer.pth
+[11-30 13:18:49|SUCCESS|cosmos_predict2/tokenizers/tokenizer.py:604:_video_vae] Successfully loaded checkpoints/nvidia/Cosmos-Predict2-2B-Video2World/tokenizer/tokenizer.pth
+[11-30 13:18:49|INFO|cosmos_predict2/tokenizers/tokenizer.py:602:_video_vae] Loading checkpoints/nvidia/Cosmos-Predict2-2B-Video2World/tokenizer/tokenizer.pth
+[11-30 13:18:49|INFO|cosmos_predict2/tokenizers/tokenizer.py:602:_video_vae] Loading checkpoints/nvidia/Cosmos-Predict2-2B-Video2World/tokenizer/tokenizer.pth
+[11-30 13:18:49|SUCCESS|cosmos_predict2/tokenizers/tokenizer.py:604:_video_vae] Successfully loaded checkpoints/nvidia/Cosmos-Predict2-2B-Video2World/tokenizer/tokenizer.pth
+[11-30 13:18:49|SUCCESS|cosmos_predict2/tokenizers/tokenizer.py:604:_video_vae] Successfully loaded checkpoints/nvidia/Cosmos-Predict2-2B-Video2World/tokenizer/tokenizer.pth
+[11-30 13:21:16|INFO|imaginaire/auxiliary/text_encoder.py:345:__init__] T5 Text encoder model instantiated
+Traceback (most recent call last):
+  File "/root/.local/share/uv/python/cpython-3.10.18-linux-x86_64-gnu/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/root/.local/share/uv/python/cpython-3.10.18-linux-x86_64-gnu/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/workspace/examples/video2world.py", line 417, in <module>
+    pipe = setup_pipeline(args)
+  File "/workspace/examples/video2world.py", line 260, in setup_pipeline
+    pipe = Video2WorldPipeline.from_config(
+  File "/workspace/cosmos_predict2/pipelines/video2world.py", line 346, in from_config
+    pipe.text_encoder = get_cosmos_text_encoder(
+  File "/workspace/imaginaire/auxiliary/text_encoder.py", line 429, in get_cosmos_text_encoder
+    return CosmosT5TextEncoder(config=config.t5, device=device, torch_dtype=torch_dtype)
+  File "/workspace/imaginaire/auxiliary/text_encoder.py", line 342, in __init__
+    self.text_encoder = T5EncoderModel.from_pretrained(self.config.ckpt_path, torch_dtype=torch_dtype).to(device)
+  File "/workspace/.venv/lib/python3.10/site-packages/transformers/modeling_utils.py", line 3698, in to
+    return super().to(*args, **kwargs)
+  File "/workspace/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1343, in to
+    return self._apply(convert)
+  File "/workspace/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 903, in _apply
+    module._apply(fn)
+  File "/workspace/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 903, in _apply
+    module._apply(fn)
+  File "/workspace/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 903, in _apply
+    module._apply(fn)
+  [Previous line repeated 4 more times]
+  File "/workspace/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 930, in _apply
+    param_applied = fn(param)
+  File "/workspace/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1329, in convert
+    return t.to(
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 64.00 MiB. GPU 0 has a total capacity of 39.49 GiB of which 57.00 MiB is free. Process 2213429 has 5.49 GiB memory in use. Process 2213427 has 4.63 GiB memory in use. Process 2213428 has 18.89 GiB memory in use. Process 2213430 has 10.39 GiB memory in use. Of the allocated memory 4.98 GiB is allocated by PyTorch, and 28.38 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+Traceback (most recent call last):
+  File "/root/.local/share/uv/python/cpython-3.10.18-linux-x86_64-gnu/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/root/.local/share/uv/python/cpython-3.10.18-linux-x86_64-gnu/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/workspace/examples/video2world.py", line 417, in <module>
+    pipe = setup_pipeline(args)
+  File "/workspace/examples/video2world.py", line 260, in setup_pipeline
+    pipe = Video2WorldPipeline.from_config(
+  File "/workspace/cosmos_predict2/pipelines/video2world.py", line 346, in from_config
+    pipe.text_encoder = get_cosmos_text_encoder(
+  File "/workspace/imaginaire/auxiliary/text_encoder.py", line 429, in get_cosmos_text_encoder
+    return CosmosT5TextEncoder(config=config.t5, device=device, torch_dtype=torch_dtype)
+  File "/workspace/imaginaire/auxiliary/text_encoder.py", line 342, in __init__
+    self.text_encoder = T5EncoderModel.from_pretrained(self.config.ckpt_path, torch_dtype=torch_dtype).to(device)
+  File "/workspace/.venv/lib/python3.10/site-packages/transformers/modeling_utils.py", line 3698, in to
+    return super().to(*args, **kwargs)
+  File "/workspace/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1343, in to
+    return self._apply(convert)
+  File "/workspace/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 903, in _apply
+    module._apply(fn)
+  File "/workspace/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 903, in _apply
+    module._apply(fn)
+  File "/workspace/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 903, in _apply
+    module._apply(fn)
+  [Previous line repeated 4 more times]
+  File "/workspace/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 930, in _apply
+    param_applied = fn(param)
+  File "/workspace/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1329, in convert
+    return t.to(
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 256.00 MiB. GPU 0 has a total capacity of 39.49 GiB of which 77.00 MiB is free. Process 2213429 has 5.49 GiB memory in use. Process 2213427 has 4.63 GiB memory in use. Process 2213428 has 18.89 GiB memory in use. Process 2213430 has 10.38 GiB memory in use. Of the allocated memory 9.86 GiB is allocated by PyTorch, and 36.33 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+Traceback (most recent call last):
+  File "/root/.local/share/uv/python/cpython-3.10.18-linux-x86_64-gnu/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/root/.local/share/uv/python/cpython-3.10.18-linux-x86_64-gnu/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/workspace/examples/video2world.py", line 417, in <module>
+    pipe = setup_pipeline(args)
+  File "/workspace/examples/video2world.py", line 260, in setup_pipeline
+    pipe = Video2WorldPipeline.from_config(
+  File "/workspace/cosmos_predict2/pipelines/video2world.py", line 346, in from_config
+    pipe.text_encoder = get_cosmos_text_encoder(
+  File "/workspace/imaginaire/auxiliary/text_encoder.py", line 429, in get_cosmos_text_encoder
+    return CosmosT5TextEncoder(config=config.t5, device=device, torch_dtype=torch_dtype)
+  File "/workspace/imaginaire/auxiliary/text_encoder.py", line 342, in __init__
+    self.text_encoder = T5EncoderModel.from_pretrained(self.config.ckpt_path, torch_dtype=torch_dtype).to(device)
+  File "/workspace/.venv/lib/python3.10/site-packages/transformers/modeling_utils.py", line 3698, in to
+    return super().to(*args, **kwargs)
+  File "/workspace/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1343, in to
+    return self._apply(convert)
+  File "/workspace/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 903, in _apply
+    module._apply(fn)
+  File "/workspace/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 903, in _apply
+    module._apply(fn)
+  File "/workspace/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 903, in _apply
+    module._apply(fn)
+  [Previous line repeated 4 more times]
+  File "/workspace/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 930, in _apply
+    param_applied = fn(param)
+  File "/workspace/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1329, in convert
+    return t.to(
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 64.00 MiB. GPU 0 has a total capacity of 39.49 GiB of which 37.00 MiB is free. Process 2213429 has 5.49 GiB memory in use. Process 2213427 has 4.67 GiB memory in use. Process 2213428 has 18.89 GiB memory in use. Process 2213430 has 10.38 GiB memory in use. Of the allocated memory 4.17 GiB is allocated by PyTorch, and 20.38 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 21.88it/s]
+Traceback (most recent call last):
+  File "/root/.local/share/uv/python/cpython-3.10.18-linux-x86_64-gnu/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/root/.local/share/uv/python/cpython-3.10.18-linux-x86_64-gnu/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/workspace/examples/video2world.py", line 417, in <module>
+    pipe = setup_pipeline(args)
+  File "/workspace/examples/video2world.py", line 260, in setup_pipeline
+    pipe = Video2WorldPipeline.from_config(
+  File "/workspace/cosmos_predict2/pipelines/video2world.py", line 361, in from_config
+    pipe.prompt_refiner = CosmosReason1(
+  File "/workspace/cosmos_predict2/auxiliary/cosmos_reason1.py", line 132, in __init__
+    self.model = self.model.to("cuda")
+  File "/workspace/.venv/lib/python3.10/site-packages/transformers/modeling_utils.py", line 3698, in to
+    return super().to(*args, **kwargs)
+  File "/workspace/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1343, in to
+    return self._apply(convert)
+  File "/workspace/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 903, in _apply
+    module._apply(fn)
+  File "/workspace/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 903, in _apply
+    module._apply(fn)
+  File "/workspace/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 903, in _apply
+    module._apply(fn)
+  [Previous line repeated 2 more times]
+  File "/workspace/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 930, in _apply
+    param_applied = fn(param)
+  File "/workspace/.venv/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1329, in convert
+    return t.to(
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 20.00 MiB. GPU 0 has a total capacity of 39.49 GiB of which 17.00 MiB is free. Process 2213429 has 5.49 GiB memory in use. Process 2213427 has 4.67 GiB memory in use. Process 2213428 has 18.91 GiB memory in use. Process 2213430 has 10.38 GiB memory in use. Of the allocated memory 18.42 GiB is allocated by PyTorch, and 10.91 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+W1130 13:21:20.183000 1 torch/distributed/elastic/multiprocessing/api.py:897] Sending process 363 closing signal SIGTERM
+W1130 13:21:20.184000 1 torch/distributed/elastic/multiprocessing/api.py:897] Sending process 364 closing signal SIGTERM
+W1130 13:21:20.187000 1 torch/distributed/elastic/multiprocessing/api.py:897] Sending process 365 closing signal SIGTERM
+E1130 13:21:21.592000 1 torch/distributed/elastic/multiprocessing/api.py:869] failed (exitcode: 1) local_rank: 3 (pid: 366) of binary: /workspace/.venv/bin/python3
+Traceback (most recent call last):
+  File "/workspace/.venv/bin/torchrun", line 10, in <module>
+    sys.exit(main())
+  File "/workspace/.venv/lib/python3.10/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 355, in wrapper
+    return f(*args, **kwargs)
+  File "/workspace/.venv/lib/python3.10/site-packages/torch/distributed/run.py", line 918, in main
+    run(args)
+  File "/workspace/.venv/lib/python3.10/site-packages/torch/distributed/run.py", line 909, in run
+    elastic_launch(
+  File "/workspace/.venv/lib/python3.10/site-packages/torch/distributed/launcher/api.py", line 138, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+  File "/workspace/.venv/lib/python3.10/site-packages/torch/distributed/launcher/api.py", line 269, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+examples.video2world FAILED
+------------------------------------------------------------
+Failures:
+  <NO_OTHER_FAILURES>
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2025-11-30_13:21:20
+  host      : 9d68ffecd72f
+  rank      : 3 (local_rank: 3)
+  exitcode  : 1 (pid: 366)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================
+```
+
 
 ### Downloading Dataset
 
@@ -391,7 +684,7 @@ Then run:
 ```
 
 ```bash
-docker run --gpus '"device=0"' --runtime=nvidia -it --rm \
+docker run --gpus all -it --rm \
   -v ~/src/cosmos-predict2:/workspace \
   -v ~/src/cosmos-predict2/datasets:/workspace/datasets \
   -v /ssd0/tippolit/cosmos-predict2/checkpoints:/workspace/checkpoints \
@@ -401,6 +694,7 @@ then:
 env | grep CUDA
 ls /dev/nvidia*
 nvidia-smi
+which python
 ```
 
 Test mounting:
@@ -427,23 +721,40 @@ EXP=predict2_video2world_training_1a_physgen && \
 nohup torchrun --nproc_per_node=4 --master_port=12341 \
     -m inference --config=cosmos_predict2/configs/base/config.py --experiment=\$EXP \
     > inference.log 2>&1 & tail -f inference.log
+
+--gpus "device=1,2,3"
+or
+--gpus '"device=1,2,3"'
+
+uv pip install \
+  https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3+cu12torch2.4cxx11abiFALSE-cp310-cp310-linux_x86_64.whl && \
 -->
 
 ```bash
-docker run --gpus all -d \
+docker run --rm \
 --shm-size=8g \
+--gpus all \
 -v ~/src/cosmos-predict2:/workspace \
 -v ~/src/cosmos-predict2/datasets:/workspace/datasets \
 -v /ssd0/tippolit/cosmos-predict2/checkpoints:/workspace/checkpoints \
 --name cosmos-inference-run \
 cosmos-predict2-local \
 bash -c "cd /workspace && \
-python examples/video2world.py \
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True && \
+torchrun --nproc_per_node=4 --master_port=12341\
+ -m examples.video2world \
   --model_size 2B \
-  --dit_path "/workspace/checkpoints/posttraining/video2world/FOXEM_PATH_TO_pt" \
+  --dit_path "/workspace/checkpoints/posttraining/video2world/1a_physgen/checkpoints/model/iter_000020000.pt" \
   --prompt "Make a sound_reflection propagation with the sound source in the center of the image in one step." \
   --input_path "/workspace/datasets/physgen_test_raw/osm/input_physgen_0.png" \
-  --save_path output/cache_physgen/prediction/generated_video_from_post-training.mp4"
+  --save_path /workspace/output/cache_physgen/prediction/generated_video_from_post-training.mp4 \
+  --disable_guardrail \
+  --disable_prompt_refiner \
+  --resolution 256 \
+  --fps 1 \
+  --aspect_ratio "1:1" \
+  --num_conditional_frames 1 \
+  --num_gpus 4"
 
 # See the logs after training
 docker logs -f cosmos-inference-run

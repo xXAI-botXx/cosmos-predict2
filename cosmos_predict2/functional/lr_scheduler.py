@@ -126,11 +126,16 @@ class LambdaWarmUpCosineScheduler:
         self.verbosity_interval = verbosity_interval
 
     def find_in_interval(self, n):
-        interval = 0
-        for cl in self.cum_cycles[1:]:
+        # Ensure n is an integer scalar
+        if not isinstance(n, (int, np.integer)):
+            n = int(np.array(n).flatten()[0])
+
+        for interval, cl in enumerate(self.cum_cycles[1:]):
             if n <= cl:
                 return interval
-            interval += 1
+            
+        # If n exceeds all cycle boundaries, use the last cycle as fallback
+        return len(self.cycle_lengths) - 1
 
     def schedule(self, n, **kwargs):
         cycle = self.find_in_interval(n)
